@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Conda
+*.conda
+
+# Outputs (large files)
+outputs/images/
+outputs/checkpoints/
+models/
+
+# Logs
+logs/*.out
+logs/*.err
+*.log
+
+# W&B
+wandb/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+*.key
+.huggingface/
+
+# Job tracking
+.job_ids
+
+# Cloned repos (will be cloned during setup)
+repos/
+
+# Claude settings
+.claude/

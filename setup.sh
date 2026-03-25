@@ -1,0 +1,173 @@
+#!/bin/bash
+# Master setup script for TFG + RL Post-Training experiments
+# Run this once to set up the entire environment
+
+set -e  # Exit on error
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+echo "=============================================="
+echo "TFG + RL Post-Training Setup"
+echo "=============================================="
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+print_status() {
+    echo -e "${GREEN}[*]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[!]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Check prerequisites
+print_status "Checking prerequisites..."
+
+if ! command -v conda &> /dev/null; then
+    print_error "conda not found. Please install Anaconda or Miniconda first."
+    exit 1
+fi
+
+if ! command -v git &> /dev/null; then
+    print_error "git not found. Please install git first."
+    exit 1
+fi
+
+# Step 1: Clone repositories
+print_status "Step 1/6: Cloning repositories..."
+
+mkdir -p repos
+cd repos
+
+if [ ! -d "TFG" ]; then
+    print_status "Cloning Training-Free-Guidance..."
+    git clone https://github.com/YWolfeee/Training-Free-Guidance.git TFG
+else
+    print_warning "TFG already exists, skipping..."
+fi
+
+if [ ! -d "flow_grpo" ]; then
+    print_status "Cloning FlowGRPO..."
+    git clone https://github.com/yifan123/flow_grpo.git flow_grpo
+else
+    print_warning "flow_grpo already exists, skipping..."
+fi
+
+if [ ! -d "geneval" ]; then
+    print_status "Cloning GenEval..."
+    git clone https://github.com/djghosh13/geneval.git geneval
+else
+    print_warning "geneval already exists, skipping..."
+fi
+
+if [ ! -d "mmdetection" ]; then
+    print_status "Cloning MMDetection..."
+    git clone https://github.com/open-mmlab/mmdetection.git
+    cd mmdetection
+    git checkout 2.x
+    cd ..
+else
+    print_warning "mmdetection already exists, skipping..."
+fi
+
+cd "$SCRIPT_DIR"
+
+# Step 2: Create conda environments
+print_status "Step 2/6: Creating conda environments..."
+
+print_status "Creating flowgrpo environment..."
+conda env create -f envs/flowgrpo.yml --force || {
+    print_warning "flowgrpo env may already exist or failed to create"
+}
+
+print_status "Creating geneval environment..."
+conda env create -f envs/geneval.yml --force || {
+    print_warning "geneval env may already exist or failed to create"
+}
+
+print_status "Creating tfg environment..."
+conda env create -f envs/tfg.yml --force || {
+    print_warning "tfg env may already exist or failed to create"
+}
+
+# Step 3: Install FlowGRPO
+print_status "Step 3/6: Installing FlowGRPO..."
+cd repos/flow_grpo
+eval "$(conda shell.bash hook)"
+conda activate flowgrpo
+pip install -e . || print_warning "FlowGRPO install may have issues"
+cd "$SCRIPT_DIR"
+
+# Step 4: Download GenEval detector models
+print_status "Step 4/6: Downloading GenEval detector models..."
+cd repos/geneval
+if [ ! -d "detector_models" ]; then
+    mkdir -p detector_models
+    if [ -f "evaluation/download_models.sh" ]; then
+        bash evaluation/download_models.sh "./detector_models/"
+    else
+        print_warning "GenEval download script not found. You may need to download models manually."
+    fi
+else
+    print_warning "detector_models already exists, skipping..."
+fi
+cd "$SCRIPT_DIR"
+
+# Step 5: Setup HuggingFace authentication
+print_status "Step 5/6: Setting up HuggingFace authentication..."
+echo ""
+print_warning "SD3.5-M requires HuggingFace authentication."
+print_warning "Please ensure you have:"
+print_warning "  1. Accepted the license at https://huggingface.co/stabilityai/stable-diffusion-3.5-medium"
+print_warning "  2. Created a HuggingFace token at https://huggingface.co/settings/tokens"
+echo ""
+
+read -p "Do you want to login to HuggingFace now? (y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    conda activate flowgrpo
+    huggingface-cli login
+fi
+
+# Step 6: Setup Weights & Biases
+print_status "Step 6/6: Setting up Weights & Biases..."
+read -p "Do you want to login to Weights & Biases now? (y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    conda activate flowgrpo
+    wandb login
+fi
+
+# Create output directories
+print_status "Creating output directories..."
+mkdir -p outputs/{images/run{1..4},checkpoints,results}
+mkdir -p logs
+
+# Summary
+echo ""
+echo "=============================================="
+echo -e "${GREEN}Setup Complete!${NC}"
+echo "=============================================="
+echo ""
+echo "Conda environments created:"
+echo "  - flowgrpo (main training/inference)"
+echo "  - geneval (evaluation)"
+echo "  - tfg (TFG inference)"
+echo ""
+echo "Next steps:"
+echo "  1. Activate environment: conda activate flowgrpo"
+echo "  2. Verify GPU access: python -c 'import torch; print(torch.cuda.is_available())'"
+echo "  3. Run experiments: ./run_all.sh"
+echo ""
+echo "Directory structure:"
+ls -la
+echo ""

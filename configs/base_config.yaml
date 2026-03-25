@@ -1,0 +1,113 @@
+# Base configuration for TFG + RL Post-Training experiments
+# Shared settings across all runs
+
+# Model settings
+model:
+  name: "stabilityai/stable-diffusion-3.5-medium"
+  torch_dtype: "bfloat16"
+  local_path: null  # Set to local path if pre-downloaded
+
+# Generation settings
+generation:
+  num_inference_steps: 40
+  guidance_scale: 4.5
+  height: 1024
+  width: 1024
+  seed: 42  # For reproducibility
+  batch_size: 4
+
+# TFG settings (for runs 2 and 4)
+tfg:
+  enabled: false
+  guidance_scale: 7.5
+  recurrence_steps: 1
+  predictor: "geneval"  # Use GenEval detector as predictor
+
+# FlowGRPO training settings
+flowgrpo:
+  # Training
+  learning_rate: 1.0e-5
+  num_train_epochs: 1
+  gradient_accumulation_steps: 4
+  max_grad_norm: 1.0
+
+  # RL specific
+  reward_model: "geneval"
+  kl_coef: 0.1
+  clip_range: 0.2
+  rollout_batch_size: 8
+
+  # Efficiency
+  use_lora: true
+  lora_rank: 64
+  lora_alpha: 128
+
+  # Checkpointing
+  save_steps: 500
+  checkpoint_dir: "outputs/checkpoints/flowgrpo"
+
+# GenEval evaluation settings
+geneval:
+  detector_path: "repos/geneval/detector_models"
+  prompts_file: "repos/geneval/prompts/evaluation_prompts.json"
+  categories:
+    - "single_object"
+    - "two_objects"
+    - "counting"
+    - "colors"
+    - "position"
+    - "color_attribution"
+
+# Metrics to compute
+metrics:
+  - "geneval_overall"
+  - "geneval_per_category"
+  - "fid"
+  - "inference_time"
+
+# Logging
+logging:
+  wandb:
+    project: "tfg-rl-baselines"
+    entity: null  # Set to your W&B username/team
+    log_images: true
+    log_every_n_images: 50
+
+  local:
+    results_dir: "outputs/results"
+    images_dir: "outputs/images"
+    logs_dir: "logs"
+
+# Hardware
+hardware:
+  num_gpus: 1
+  mixed_precision: "bf16"
+  dataloader_num_workers: 4
+
+# Run configurations (override base settings)
+runs:
+  run1_baseline:
+    description: "Base SD3.5-M with standard ODE sampling"
+    tfg:
+      enabled: false
+    checkpoint: null
+
+  run2_tfg:
+    description: "Base SD3.5-M with TFG guidance"
+    tfg:
+      enabled: true
+      guidance_scale: 7.5
+    checkpoint: null
+
+  run3_flowgrpo:
+    description: "FlowGRPO-finetuned with standard ODE sampling"
+    tfg:
+      enabled: false
+    checkpoint: "outputs/checkpoints/flowgrpo/final"
+
+  run4_flowgrpo_tfg:
+    description: "FlowGRPO-finetuned with TFG guidance"
+    tfg:
+      enabled: true
+      guidance_scale: 7.5
+    checkpoint: "outputs/checkpoints/flowgrpo/final"

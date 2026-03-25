@@ -1,0 +1,21 @@
+name: geneval
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pytorch=2.0.1
+  - torchvision
+  - pytorch-cuda=11.8
+  - pip
+  - pip:
+    - mmdet>=3.0.0
+    - mmcv>=2.0.0
+    - mmengine>=0.8.0
+    - pillow
+    - tqdm
+    - numpy<2.0
+    - scipy
+    - pycocotools
+    - opencv-python
