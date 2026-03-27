@@ -95,28 +95,32 @@ if [ -n "$RCAC_SCRATCH" ]; then
     print_status "Conda envs will be installed to: $RCAC_SCRATCH/conda/envs"
 fi
 
-print_status "Creating flowgrpo environment..."
-conda env create -f envs/flowgrpo.yml --force || {
-    print_warning "flowgrpo env may already exist or failed to create"
+create_or_update_env() {
+    local yml_file=$1
+    local env_name=$2
+    if conda env list | grep -q "^${env_name} "; then
+        print_warning "${env_name} env already exists — updating..."
+        conda env update -n "$env_name" -f "$yml_file" --prune || \
+            print_warning "Could not update ${env_name} env"
+    else
+        conda env create -f "$yml_file" || \
+            print_warning "Could not create ${env_name} env"
+    fi
 }
+
+print_status "Creating flowgrpo environment..."
+create_or_update_env envs/flowgrpo.yml flowgrpo
 
 print_status "Creating geneval environment..."
-conda env create -f envs/geneval.yml --force || {
-    print_warning "geneval env may already exist or failed to create"
-}
+create_or_update_env envs/geneval.yml geneval
 
 print_status "Creating tfg environment..."
-conda env create -f envs/tfg.yml --force || {
-    print_warning "tfg env may already exist or failed to create"
-}
+create_or_update_env envs/tfg.yml tfg
 
 # Step 3: Install FlowGRPO
 print_status "Step 3/6: Installing FlowGRPO..."
-cd repos/flow_grpo
-eval "$(conda shell.bash hook)"
-conda activate flowgrpo
-pip install -e . || print_warning "FlowGRPO install may have issues"
-cd "$SCRIPT_DIR"
+conda run -n flowgrpo pip install -e repos/flow_grpo || \
+    print_warning "FlowGRPO install may have issues"
 
 # Step 4: Download GenEval detector models
 print_status "Step 4/6: Downloading GenEval detector models..."
@@ -145,8 +149,7 @@ echo ""
 read -p "Do you want to login to HuggingFace now? (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    conda activate flowgrpo
-    huggingface-cli login
+    conda run -n flowgrpo huggingface-cli login
 fi
 
 # Step 6: Setup Weights & Biases
@@ -154,8 +157,7 @@ print_status "Step 6/6: Setting up Weights & Biases..."
 read -p "Do you want to login to Weights & Biases now? (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    conda activate flowgrpo
-    wandb login
+    conda run -n flowgrpo wandb login
 fi
 
 # Create output directories
