@@ -1,13 +1,14 @@
 name: geneval
 channels:
   - pytorch
+  - nvidia
   - conda-forge
   - defaults
 dependencies:
   - python=3.9
   - pytorch=2.0.1
   - torchvision
-  - pytorch-cuda=11.8
+  - pytorch-cuda=12.1
   - pip
   - pip:
     - mmdet>=3.0.0
