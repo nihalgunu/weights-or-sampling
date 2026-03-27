@@ -17,12 +17,14 @@ def load_run_results(results_dir: str) -> dict:
     results_dir = Path(results_dir)
     all_results = {}
 
-    # Expected run files
+    # Expected run files (6 runs: Base, Base+TFG, DDRL, DDRL+TFG, FlowGRPO, FlowGRPO+TFG)
     run_names = [
         "run1_baseline",
         "run2_tfg",
-        "run3_flowgrpo",
-        "run4_flowgrpo_tfg",
+        "run3_ddrl",
+        "run4_ddrl_tfg",
+        "run5_flowgrpo",
+        "run6_flowgrpo_tfg",
     ]
 
     for run_name in run_names:
@@ -54,17 +56,20 @@ def create_summary_table(all_results: dict) -> list:
         "Sec/Img",
     ]
 
-    # Human-readable run names
+    # Human-readable run names matching the execution plan table
     run_labels = {
-        "run1_baseline": "1. Base SD3.5-M",
+        "run1_baseline": "1. Base",
         "run2_tfg": "2. Base + TFG",
-        "run3_flowgrpo": "3. FlowGRPO",
-        "run4_flowgrpo_tfg": "4. FlowGRPO + TFG",
+        "run3_ddrl": "3. DDRL",
+        "run4_ddrl_tfg": "4. DDRL + TFG",
+        "run5_flowgrpo": "5. FlowGRPO",
+        "run6_flowgrpo_tfg": "6. FlowGRPO + TFG",
     }
 
     rows = [header]
 
-    for run_name in ["run1_baseline", "run2_tfg", "run3_flowgrpo", "run4_flowgrpo_tfg"]:
+    for run_name in ["run1_baseline", "run2_tfg", "run3_ddrl", "run4_ddrl_tfg",
+                     "run5_flowgrpo", "run6_flowgrpo_tfg"]:
         results = all_results.get(run_name)
 
         if results is None:
@@ -145,34 +150,100 @@ def log_to_wandb(rows: list, wandb_project: str):
     wandb.finish()
 
 
+def check_reward_hacking(baseline_results: dict, run_results: dict, run_label: str) -> dict:
+    """
+    Flag reward hacking: any per-category score drops while overall score rises.
+    Returns a dict describing the hacking status.
+    """
+    if not baseline_results or not run_results:
+        return {}
+
+    base_overall = baseline_results.get("overall_score", -1)
+    run_overall = run_results.get("overall_score", -1)
+    base_cats = baseline_results.get("per_category_scores", {})
+    run_cats = run_results.get("per_category_scores", {})
+
+    if base_overall <= 0 or run_overall <= 0:
+        return {}
+
+    overall_gain = run_overall - base_overall
+    dropped_categories = {}
+    for cat in base_cats:
+        delta = run_cats.get(cat, 0) - base_cats.get(cat, 0)
+        if delta < -1.0:  # More than 1% drop
+            dropped_categories[cat] = round(delta, 2)
+
+    hacking_detected = overall_gain > 0 and len(dropped_categories) > 0
+    return {
+        "overall_gain": round(overall_gain, 2),
+        "dropped_categories": dropped_categories,
+        "reward_hacking_detected": hacking_detected,
+    }
+
+
 def compute_analysis(all_results: dict) -> dict:
-    """Compute analysis of results (complementarity, etc.)."""
+    """Compute analysis of results (complementarity, reward hacking, etc.)."""
 
     analysis = {}
 
-    # Get scores
+    # Get overall scores
     scores = {}
     for run_name, results in all_results.items():
         if results:
             scores[run_name] = results.get("overall_score", -1)
 
-    # TFG-only lift
+    baseline = all_results.get("run1_baseline")
+
+    # TFG-only lift (run2 vs run1)
     if "run1_baseline" in scores and "run2_tfg" in scores:
         if scores["run1_baseline"] > 0 and scores["run2_tfg"] > 0:
-            analysis["tfg_lift"] = scores["run2_tfg"] - scores["run1_baseline"]
-            analysis["tfg_lift_pct"] = (analysis["tfg_lift"] / scores["run1_baseline"]) * 100
+            analysis["tfg_lift"] = round(scores["run2_tfg"] - scores["run1_baseline"], 2)
+            analysis["tfg_lift_pct"] = round(
+                (analysis["tfg_lift"] / scores["run1_baseline"]) * 100, 2
+            )
 
-    # FlowGRPO-only lift
-    if "run1_baseline" in scores and "run3_flowgrpo" in scores:
-        if scores["run1_baseline"] > 0 and scores["run3_flowgrpo"] > 0:
-            analysis["flowgrpo_lift"] = scores["run3_flowgrpo"] - scores["run1_baseline"]
-            analysis["flowgrpo_lift_pct"] = (analysis["flowgrpo_lift"] / scores["run1_baseline"]) * 100
+    # DDRL-only lift (run3 vs run1)
+    if "run1_baseline" in scores and "run3_ddrl" in scores:
+        if scores["run1_baseline"] > 0 and scores["run3_ddrl"] > 0:
+            analysis["ddrl_lift"] = round(scores["run3_ddrl"] - scores["run1_baseline"], 2)
+            analysis["ddrl_lift_pct"] = round(
+                (analysis["ddrl_lift"] / scores["run1_baseline"]) * 100, 2
+            )
 
-    # Complementarity: Does TFG help on top of FlowGRPO?
-    if "run3_flowgrpo" in scores and "run4_flowgrpo_tfg" in scores:
-        if scores["run3_flowgrpo"] > 0 and scores["run4_flowgrpo_tfg"] > 0:
-            analysis["tfg_on_flowgrpo_lift"] = scores["run4_flowgrpo_tfg"] - scores["run3_flowgrpo"]
-            analysis["complementary"] = analysis["tfg_on_flowgrpo_lift"] > 1.0  # >1% improvement
+    # TFG on DDRL complementarity (run4 vs run3)
+    if "run3_ddrl" in scores and "run4_ddrl_tfg" in scores:
+        if scores["run3_ddrl"] > 0 and scores["run4_ddrl_tfg"] > 0:
+            analysis["tfg_on_ddrl_lift"] = round(scores["run4_ddrl_tfg"] - scores["run3_ddrl"], 2)
+            analysis["ddrl_tfg_complementary"] = analysis["tfg_on_ddrl_lift"] > 1.0
+
+    # FlowGRPO-only lift (run5 vs run1)
+    if "run1_baseline" in scores and "run5_flowgrpo" in scores:
+        if scores["run1_baseline"] > 0 and scores["run5_flowgrpo"] > 0:
+            analysis["flowgrpo_lift"] = round(scores["run5_flowgrpo"] - scores["run1_baseline"], 2)
+            analysis["flowgrpo_lift_pct"] = round(
+                (analysis["flowgrpo_lift"] / scores["run1_baseline"]) * 100, 2
+            )
+
+    # TFG on FlowGRPO complementarity (run6 vs run5)
+    if "run5_flowgrpo" in scores and "run6_flowgrpo_tfg" in scores:
+        if scores["run5_flowgrpo"] > 0 and scores["run6_flowgrpo_tfg"] > 0:
+            analysis["tfg_on_flowgrpo_lift"] = round(
+                scores["run6_flowgrpo_tfg"] - scores["run5_flowgrpo"], 2
+            )
+            analysis["flowgrpo_tfg_complementary"] = analysis["tfg_on_flowgrpo_lift"] > 1.0
+
+    # DDRL vs FlowGRPO direct comparison
+    if "run3_ddrl" in scores and "run5_flowgrpo" in scores:
+        if scores["run3_ddrl"] > 0 and scores["run5_flowgrpo"] > 0:
+            analysis["ddrl_vs_flowgrpo"] = round(scores["run3_ddrl"] - scores["run5_flowgrpo"], 2)
+
+    # Reward hacking checks
+    analysis["reward_hacking"] = {}
+    for run_name in ["run3_ddrl", "run4_ddrl_tfg", "run5_flowgrpo", "run6_flowgrpo_tfg"]:
+        if all_results.get(run_name) and baseline:
+            analysis["reward_hacking"][run_name] = check_reward_hacking(
+                baseline, all_results[run_name], run_name
+            )
 
     return analysis
 
@@ -212,13 +283,33 @@ def main():
         print("=" * 80)
         if "tfg_lift" in analysis:
             print(f"TFG-only lift: {analysis['tfg_lift']:.1f}% ({analysis['tfg_lift_pct']:.1f}% relative)")
+        if "ddrl_lift" in analysis:
+            print(f"DDRL-only lift: {analysis['ddrl_lift']:.1f}% ({analysis['ddrl_lift_pct']:.1f}% relative)")
         if "flowgrpo_lift" in analysis:
             print(f"FlowGRPO-only lift: {analysis['flowgrpo_lift']:.1f}% ({analysis['flowgrpo_lift_pct']:.1f}% relative)")
-        if "complementary" in analysis:
-            if analysis["complementary"]:
+        if "ddrl_vs_flowgrpo" in analysis:
+            delta = analysis["ddrl_vs_flowgrpo"]
+            winner = "DDRL" if delta > 0 else "FlowGRPO"
+            print(f"DDRL vs FlowGRPO: {winner} wins by {abs(delta):.1f}%")
+        if "ddrl_tfg_complementary" in analysis:
+            if analysis["ddrl_tfg_complementary"]:
+                print(f"TFG + DDRL are COMPLEMENTARY (additional {analysis['tfg_on_ddrl_lift']:.1f}% from TFG)")
+            else:
+                print(f"TFG + DDRL are REDUNDANT (only {analysis['tfg_on_ddrl_lift']:.1f}% from TFG)")
+        if "flowgrpo_tfg_complementary" in analysis:
+            if analysis["flowgrpo_tfg_complementary"]:
                 print(f"TFG + FlowGRPO are COMPLEMENTARY (additional {analysis['tfg_on_flowgrpo_lift']:.1f}% from TFG)")
             else:
                 print(f"TFG + FlowGRPO are REDUNDANT (only {analysis['tfg_on_flowgrpo_lift']:.1f}% from TFG)")
+        hacking = analysis.get("reward_hacking", {})
+        if hacking:
+            print("\nReward hacking check:")
+            for run_name, info in hacking.items():
+                if info.get("reward_hacking_detected"):
+                    print(f"  *** {run_name}: HACKING DETECTED! "
+                          f"Overall +{info['overall_gain']}% but drops in: {info['dropped_categories']}")
+                else:
+                    print(f"  {run_name}: OK (overall +{info.get('overall_gain', 0):.1f}%)")
 
     # Save CSV
     save_csv(rows, args.output_file)

@@ -84,6 +84,17 @@ cd "$SCRIPT_DIR"
 # Step 2: Create conda environments
 print_status "Step 2/6: Creating conda environments..."
 
+# On Gilbreth (or any RCAC cluster), redirect conda envs/pkgs to scratch
+# so they don't overflow the home directory quota (~25GB).
+# Cold-start import latency (~30-60s) is acceptable for long training jobs.
+if [ -n "$RCAC_SCRATCH" ]; then
+    print_status "RCAC cluster detected — configuring conda to use scratch..."
+    mkdir -p "$RCAC_SCRATCH/conda/envs" "$RCAC_SCRATCH/conda/pkgs"
+    conda config --add envs_dirs "$RCAC_SCRATCH/conda/envs"
+    conda config --add pkgs_dirs "$RCAC_SCRATCH/conda/pkgs"
+    print_status "Conda envs will be installed to: $RCAC_SCRATCH/conda/envs"
+fi
+
 print_status "Creating flowgrpo environment..."
 conda env create -f envs/flowgrpo.yml --force || {
     print_warning "flowgrpo env may already exist or failed to create"
@@ -149,7 +160,15 @@ fi
 
 # Create output directories
 print_status "Creating output directories..."
-mkdir -p outputs/{images/run{1..4},checkpoints,results}
+mkdir -p outputs/images/run1_baseline
+mkdir -p outputs/images/run2_tfg
+mkdir -p outputs/images/run3_ddrl
+mkdir -p outputs/images/run4_ddrl_tfg
+mkdir -p outputs/images/run5_flowgrpo
+mkdir -p outputs/images/run6_flowgrpo_tfg
+mkdir -p outputs/checkpoints/ddrl
+mkdir -p outputs/checkpoints/flowgrpo
+mkdir -p outputs/results
 mkdir -p logs
 
 # Summary
@@ -159,9 +178,12 @@ echo -e "${GREEN}Setup Complete!${NC}"
 echo "=============================================="
 echo ""
 echo "Conda environments created:"
-echo "  - flowgrpo (main training/inference)"
+echo "  - flowgrpo (FlowGRPO training + DDRL training + inference)"
 echo "  - geneval (evaluation)"
-echo "  - tfg (TFG inference)"
+echo "  - tfg (TFG-Flow inference)"
+echo ""
+echo "Note: DDRL repo not yet public. DDRL training is implemented in"
+echo "  scripts/train_ddrl.py (forward KL + reward maximization from paper)."
 echo ""
 echo "Next steps:"
 echo "  1. Activate environment: conda activate flowgrpo"
