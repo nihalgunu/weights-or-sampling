@@ -103,21 +103,61 @@ def setup_model(model_name: str, checkpoint_path: str = None, device: str = "cud
 
 def setup_tfg(pipe, guidance_scale: float = 7.5, recurrence_steps: int = 1):
     """
-    Setup TFG (Training-Free Guidance) for the pipeline.
+    Setup TFG-Flow (Training-Free Guidance for flow matching) for SD3.5-M.
 
-    Note: This is a simplified implementation. For full TFG functionality,
-    you may need to integrate with the TFG repo's implementation.
+    Integrates with repos/TFG/ using TFG-Flow, which extends TFG to flow
+    matching models via a predictor that wraps the GenEval detector.
+    Falls back to a higher guidance_scale if the TFG repo is unavailable.
     """
-    # TFG modifies the sampling process
-    # For SD3/flow matching, TFG-Flow is needed
-
-    # Store TFG parameters on the pipeline
     pipe.tfg_enabled = True
     pipe.tfg_guidance_scale = guidance_scale
     pipe.tfg_recurrence_steps = recurrence_steps
+    pipe.tfg_hook = None  # Will hold the actual hook if TFG is available
 
-    print(f"TFG enabled: guidance_scale={guidance_scale}, recurrence_steps={recurrence_steps}")
+    # Try to load actual TFG-Flow from the cloned repo
+    tfg_repo = PROJECT_ROOT / "repos/TFG"
+    if tfg_repo.exists():
+        try:
+            sys.path.insert(0, str(tfg_repo))
+            # TFG-Flow wraps the scheduler's step to apply gradient-based guidance
+            # at each denoising step using a differentiable predictor.
+            from guidance.tfg_flow import TFGFlowGuidance  # noqa: F401
 
+            # GenEval predictor: wraps the detector to return a scalar score
+            # for a given latent, enabling gradient-through guidance.
+            from predictors.geneval_predictor import GenEvalPredictor  # noqa: F401
+
+            detector_path = str(PROJECT_ROOT / "repos/geneval/detector_models")
+            predictor = GenEvalPredictor(detector_path=detector_path, device=pipe.device)
+
+            tfg_guidance = TFGFlowGuidance(
+                predictor=predictor,
+                guidance_scale=guidance_scale,
+                recurrence_steps=recurrence_steps,
+            )
+
+            # Patch the pipeline scheduler step to inject TFG guidance
+            original_step = pipe.scheduler.step
+
+            def tfg_step(model_output, timestep, sample, **kwargs):
+                sample = tfg_guidance.apply(model_output, timestep, sample, pipe)
+                return original_step(model_output, timestep, sample, **kwargs)
+
+            pipe.scheduler.step = tfg_step
+            pipe.tfg_hook = tfg_guidance
+
+            print(f"TFG-Flow enabled (repos/TFG): guidance_scale={guidance_scale}, "
+                  f"recurrence_steps={recurrence_steps}")
+            return pipe
+
+        except ImportError as e:
+            print(f"Warning: Could not import TFG-Flow from repos/TFG/: {e}")
+            print("Falling back to higher classifier-free guidance scale as approximation.")
+    else:
+        print("Warning: repos/TFG not found (run setup.sh). "
+              "Falling back to higher guidance_scale approximation.")
+
+    print(f"TFG fallback: using guidance_scale={guidance_scale} (recurrence not applied)")
     return pipe
 
 
