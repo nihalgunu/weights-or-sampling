@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=ddrl_train
-#SBATCH --partition=a100-40gb
+#SBATCH --partition=gpu
 #SBATCH --account=labi
 #SBATCH --gres=gpu:4
 #SBATCH --nodes=1

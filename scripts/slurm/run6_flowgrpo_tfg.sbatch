@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=run6_flowgrpo_tfg
-#SBATCH --partition=a100-40gb
+#SBATCH --partition=gpu
 #SBATCH --account=labi
 #SBATCH --gres=gpu:1
 #SBATCH --time=12:00:00

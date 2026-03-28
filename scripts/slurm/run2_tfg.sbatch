@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=sd35m_tfg
-#SBATCH --partition=a100-40gb
+#SBATCH --partition=gpu
 #SBATCH --account=labi
 #SBATCH --gres=gpu:1
 #SBATCH --time=12:00:00
