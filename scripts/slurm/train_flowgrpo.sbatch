@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=flowgrpo_train
-#SBATCH --partition=gpu
+#SBATCH --partition=a10
 #SBATCH --account=labi
 #SBATCH --gres=gpu:3
 #SBATCH --nodes=1
 #SBATCH --time=48:00:00
-#SBATCH --mem=200G
-#SBATCH --cpus-per-task=60
+#SBATCH --mem=120G
+#SBATCH --cpus-per-task=32
 #SBATCH --output=logs/flowgrpo_train_%j.out
 #SBATCH --error=logs/flowgrpo_train_%j.err
 

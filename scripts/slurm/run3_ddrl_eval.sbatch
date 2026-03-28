@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=run3_ddrl
-#SBATCH --partition=gpu
+#SBATCH --partition=a10
 #SBATCH --account=labi
 #SBATCH --gres=gpu:1
 #SBATCH --time=6:00:00
