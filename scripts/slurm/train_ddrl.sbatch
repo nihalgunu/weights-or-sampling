@@ -2,11 +2,11 @@
 #SBATCH --job-name=ddrl_train
 #SBATCH --partition=gpu
 #SBATCH --account=labi
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:3
 #SBATCH --nodes=1
 #SBATCH --time=48:00:00
-#SBATCH --mem=256G
-#SBATCH --cpus-per-task=32
+#SBATCH --mem=200G
+#SBATCH --cpus-per-task=60
 #SBATCH --output=logs/ddrl_train_%j.out
 #SBATCH --error=logs/ddrl_train_%j.err
 

@@ -5,7 +5,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --time=6:00:00
 #SBATCH --mem=64G
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=20
 #SBATCH --output=logs/run5_flowgrpo_%j.out
 #SBATCH --error=logs/run5_flowgrpo_%j.err
 
