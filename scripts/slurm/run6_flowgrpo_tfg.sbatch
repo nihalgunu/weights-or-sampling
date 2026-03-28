@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=run6_flowgrpo_tfg
-#SBATCH --partition=gpu
+#SBATCH --partition=a100-40gb
+#SBATCH --account=labi
 #SBATCH --gres=gpu:1
 #SBATCH --time=12:00:00
 #SBATCH --mem=64G
@@ -22,25 +23,24 @@ echo "Node: $SLURMD_NODENAME"
 echo "Time: $(date)"
 echo "=============================================="
 
-# Load modules
-module load cuda/11.8 2>/dev/null || true
-module load anaconda 2>/dev/null || true
+export RCAC_SCRATCH=${RCAC_SCRATCH:-/scratch/gilbreth/${USER}}
+export CONDA_ENVS_PATH="$RCAC_SCRATCH/conda/envs"
+export CONDA_PKGS_DIRS="$RCAC_SCRATCH/conda/pkgs"
+export PIP_CACHE_DIR="$RCAC_SCRATCH/pip/cache"
+export HF_HOME="$RCAC_SCRATCH/.cache/huggingface"
 
-eval "$(conda shell.bash hook)"
+source /apps/external/conda/2025.09/etc/profile.d/conda.sh
 conda activate flowgrpo
 
 echo "GPU Info:"
 nvidia-smi --query-gpu=name,memory.total --format=csv
 
-# Check if checkpoint exists
 CHECKPOINT_PATH="outputs/checkpoints/flowgrpo/final"
 if [ ! -d "$CHECKPOINT_PATH" ]; then
     echo "ERROR: FlowGRPO checkpoint not found at $CHECKPOINT_PATH"
-    echo "Please run train_flowgrpo.sbatch first"
     exit 1
 fi
 
-# Run image generation with finetuned model + TFG
 echo ""
 echo "Starting image generation with FlowGRPO + TFG..."
 python scripts/generate_images.py \
@@ -52,7 +52,6 @@ python scripts/generate_images.py \
     --tfg_recurrence_steps 1 \
     --checkpoint "$CHECKPOINT_PATH"
 
-# Run evaluation
 echo ""
 echo "Starting GenEval evaluation..."
 python scripts/evaluate_geneval.py \
@@ -60,7 +59,6 @@ python scripts/evaluate_geneval.py \
     --output_file outputs/results/run6_flowgrpo_tfg.json \
     --detector_path repos/geneval/detector_models
 
-# Log to W&B
 echo ""
 echo "Logging results to W&B..."
 python scripts/log_results.py \

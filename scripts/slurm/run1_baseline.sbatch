@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=sd35m_baseline
-#SBATCH --partition=gpu
+#SBATCH --partition=a100-40gb
+#SBATCH --account=labi
 #SBATCH --gres=gpu:1
 #SBATCH --time=6:00:00
 #SBATCH --mem=64G
@@ -12,7 +13,6 @@
 
 set -e
 
-# Get the project root directory
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
@@ -23,19 +23,20 @@ echo "Node: $SLURMD_NODENAME"
 echo "Time: $(date)"
 echo "=============================================="
 
-# Load modules (adjust based on your cluster)
-module load cuda/11.8 2>/dev/null || true
-module load anaconda 2>/dev/null || true
+# Scratch paths
+export RCAC_SCRATCH=${RCAC_SCRATCH:-/scratch/gilbreth/${USER}}
+export CONDA_ENVS_PATH="$RCAC_SCRATCH/conda/envs"
+export CONDA_PKGS_DIRS="$RCAC_SCRATCH/conda/pkgs"
+export PIP_CACHE_DIR="$RCAC_SCRATCH/pip/cache"
+export HF_HOME="$RCAC_SCRATCH/.cache/huggingface"
 
-# Activate environment
-eval "$(conda shell.bash hook)"
+# Initialize conda and activate env
+source /apps/external/conda/2025.09/etc/profile.d/conda.sh
 conda activate flowgrpo
 
-# Verify GPU
 echo "GPU Info:"
 nvidia-smi --query-gpu=name,memory.total --format=csv
 
-# Run image generation
 echo ""
 echo "Starting image generation..."
 python scripts/generate_images.py \
@@ -45,7 +46,6 @@ python scripts/generate_images.py \
     --use_tfg false \
     --checkpoint null
 
-# Run evaluation
 echo ""
 echo "Starting GenEval evaluation..."
 python scripts/evaluate_geneval.py \
@@ -53,7 +53,6 @@ python scripts/evaluate_geneval.py \
     --output_file outputs/results/run1_baseline.json \
     --detector_path repos/geneval/detector_models
 
-# Log to W&B
 echo ""
 echo "Logging results to W&B..."
 python scripts/log_results.py \
