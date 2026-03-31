@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=sd35m_baseline
-#SBATCH --partition=a100-40gb
-#SBATCH --account=labi
+#SBATCH --partition=a10
+#SBATCH --account=bera89-k
 #SBATCH --gres=gpu:1
 #SBATCH --time=6:00:00
 #SBATCH --mem=64G
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=20
 #SBATCH --output=logs/run1_baseline_%j.out
 #SBATCH --error=logs/run1_baseline_%j.err
 

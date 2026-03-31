@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=ddrl_train
-#SBATCH --partition=a100-40gb
-#SBATCH --account=labi
-#SBATCH --gres=gpu:4
+#SBATCH --partition=a10
+#SBATCH --account=bera89-k
+#SBATCH --gres=gpu:3
 #SBATCH --nodes=1
 #SBATCH --time=48:00:00
-#SBATCH --mem=256G
+#SBATCH --mem=120G
 #SBATCH --cpus-per-task=32
 #SBATCH --output=logs/ddrl_train_%j.out
 #SBATCH --error=logs/ddrl_train_%j.err

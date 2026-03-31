@@ -1,10 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=aggregate_results
-#SBATCH --partition=gilbreth-nodes
-#SBATCH --account=labi
+#SBATCH --partition=a10
+#SBATCH --account=bera89-k
+#SBATCH --gres=gpu:1
 #SBATCH --time=1:00:00
 #SBATCH --mem=16G
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=20
 #SBATCH --output=logs/aggregate_results_%j.out
 #SBATCH --error=logs/aggregate_results_%j.err
 

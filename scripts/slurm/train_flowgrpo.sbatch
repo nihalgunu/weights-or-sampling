@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=flowgrpo_train
-#SBATCH --partition=a100-40gb
-#SBATCH --account=labi
-#SBATCH --gres=gpu:4
+#SBATCH --partition=a10
+#SBATCH --account=bera89-k
+#SBATCH --gres=gpu:3
 #SBATCH --nodes=1
 #SBATCH --time=48:00:00
-#SBATCH --mem=256G
+#SBATCH --mem=120G
 #SBATCH --cpus-per-task=32
 #SBATCH --output=logs/flowgrpo_train_%j.out
 #SBATCH --error=logs/flowgrpo_train_%j.err
@@ -48,7 +48,7 @@ echo "Starting FlowGRPO training..."
 
 cd repos/flow_grpo
 
-accelerate launch --num_processes=4 --mixed_precision=bf16 \
+accelerate launch --num_processes=3 --mixed_precision=bf16 \
     train_grpo.py \
     --model_name_or_path stabilityai/stable-diffusion-3.5-medium \
     --reward_model geneval \

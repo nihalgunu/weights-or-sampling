@@ -2,15 +2,15 @@
 # Master script to run all TFG + RL experiments (6 runs)
 # Submits all Slurm jobs with proper dependencies
 #
-# DAG:
-#   Run 1 (baseline) ─────────────────────────────────┐
-#   Run 2 (base+TFG) ─────────────────────────────────┤
-#                                                       ├──► Aggregate
-#   DDRL Training ──► Run 3 (DDRL) ──────────────────┤
-#                └──► Run 4 (DDRL+TFG) ──────────────┤
-#                                                       │
-#   FlowGRPO Training ──► Run 5 (FlowGRPO) ──────────┤
-#                    └──► Run 6 (FlowGRPO+TFG) ───────┘
+# DAG (training jobs serialized to stay within 4-GPU group limit):
+#   Run 1 (baseline) ────────────────────────────────────┐
+#   Run 2 (base+TFG) ────────────────────────────────────┤
+#                                                         ├──► Aggregate
+#   DDRL Training ──► Run 3 (DDRL) ────────────────────┤
+#                └──► Run 4 (DDRL+TFG) ────────────────┤
+#                └──► [afterok] FlowGRPO Training        │
+#                                  └──► Run 5 (FGRPO) ──┤
+#                                  └──► Run 6 (FGRPO+TFG)┘
 
 set -e
 
@@ -104,9 +104,9 @@ else
     JOB_TRAIN_DDRL=$(sbatch --parsable scripts/slurm/train_ddrl.sbatch)
     echo -e "${GREEN}[Submitted]${NC} DDRL training: Job $JOB_TRAIN_DDRL"
 
-    # FlowGRPO training (no dependency, runs in parallel with everything above)
-    JOB_TRAIN_FGRPO=$(sbatch --parsable scripts/slurm/train_flowgrpo.sbatch)
-    echo -e "${GREEN}[Submitted]${NC} FlowGRPO training: Job $JOB_TRAIN_FGRPO"
+    # FlowGRPO training: depends on DDRL training to stay within 4-GPU group cap
+    JOB_TRAIN_FGRPO=$(sbatch --parsable --dependency=afterok:$JOB_TRAIN_DDRL scripts/slurm/train_flowgrpo.sbatch)
+    echo -e "${GREEN}[Submitted]${NC} FlowGRPO training: Job $JOB_TRAIN_FGRPO (depends on $JOB_TRAIN_DDRL)"
 
     # Runs 3 & 4: depend on DDRL training
     JOB3=$(sbatch --parsable --dependency=afterok:$JOB_TRAIN_DDRL scripts/slurm/run3_ddrl_eval.sbatch)
@@ -135,14 +135,14 @@ else
     echo ""
     echo "Job dependency graph:"
     echo ""
-    echo "  Run 1 (baseline) ─────────────────────────────────┐"
-    echo "  Run 2 (base+TFG) ─────────────────────────────────┤"
-    echo "                                                      ├──► Aggregate"
-    echo "  DDRL Training ──► Run 3 (DDRL) ──────────────────┤"
-    echo "               └──► Run 4 (DDRL+TFG) ──────────────┤"
-    echo "                                                      │"
-    echo "  FlowGRPO Training ──► Run 5 (FlowGRPO) ──────────┤"
-    echo "                   └──► Run 6 (FlowGRPO+TFG) ───────┘"
+    echo "  Run 1 (baseline) ──────────────────────────────────────┐"
+    echo "  Run 2 (base+TFG) ──────────────────────────────────────┤"
+    echo "                                                           ├──► Aggregate"
+    echo "  DDRL Training ──► Run 3 (DDRL) ───────────────────────┤"
+    echo "               └──► Run 4 (DDRL+TFG) ───────────────────┤"
+    echo "               └──► [after] FlowGRPO Training            │"
+    echo "                              └──► Run 5 (FlowGRPO) ─────┤"
+    echo "                              └──► Run 6 (FGRPO+TFG) ─────┘"
     echo ""
     echo "Monitor progress:"
     echo "  squeue -u \$USER"
