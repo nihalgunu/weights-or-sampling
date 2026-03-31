@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=flowgrpo_train
 #SBATCH --partition=a10
-#SBATCH --account=labi
+#SBATCH --account=bera89-k
 #SBATCH --gres=gpu:3
 #SBATCH --nodes=1
 #SBATCH --time=48:00:00

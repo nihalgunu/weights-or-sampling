@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=aggregate_results
 #SBATCH --partition=a10
-#SBATCH --account=labi
+#SBATCH --account=bera89-k
 #SBATCH --gres=gpu:1
 #SBATCH --time=1:00:00
 #SBATCH --mem=16G
