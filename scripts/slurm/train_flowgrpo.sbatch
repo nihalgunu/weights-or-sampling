@@ -53,7 +53,7 @@ cd repos/flow_grpo
 
 # Run training using FlowGRPO's script
 # Adjust parameters as needed based on their config structure
-accelerate launch --num_processes=4 --mixed_precision=bf16 \
+accelerate launch --num_processes=1 --mixed_precision=bf16 \
     train_grpo.py \
     --model_name_or_path stabilityai/stable-diffusion-3.5-medium \
     --reward_model geneval \
