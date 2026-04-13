@@ -127,9 +127,10 @@ create_or_update_env envs/flowgrpo.yml flowgrpo
 print_status "Creating geneval environment..."
 create_or_update_env envs/geneval.yml geneval
 
-print_status "Installing mmcv via openmim (pre-built wheel, no compiler needed)..."
-conda run -n geneval mim install mmcv || \
-    print_warning "mmcv install via mim may have issues"
+print_status "Installing mmcv pre-built wheel (CUDA 12.1 + PyTorch 2.0.1)..."
+conda run -n geneval pip install mmcv==2.1.0 \
+    -f https://download.openmmlab.com/mmcv/dist/cu121/torch2.0.1/index.html || \
+    print_warning "mmcv install may have issues"
 
 print_status "Creating tfg environment..."
 create_or_update_env envs/tfg.yml tfg
