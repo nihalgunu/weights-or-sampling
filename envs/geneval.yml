@@ -1,6 +1,7 @@
 name: geneval
 channels:
   - pytorch
+  - nvidia
   - conda-forge
   - defaults
 dependencies:
