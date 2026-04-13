@@ -11,9 +11,8 @@ dependencies:
   - pytorch-cuda=12.1
   - pip
   - pip:
-    - --find-links https://download.openmmlab.com/mmcv/dist/cu121/torch2.0.1/index.html
+    - openmim
     - mmdet>=3.0.0
-    - mmcv==2.1.0
     - mmengine>=0.8.0
     - pillow
     - tqdm
