@@ -166,10 +166,15 @@ print_warning "  1. Accepted the license at https://huggingface.co/stabilityai/s
 print_warning "  2. Created a HuggingFace token at https://huggingface.co/settings/tokens"
 echo ""
 
-read -p "Do you want to login to HuggingFace now? (y/n) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    conda run -n flowgrpo huggingface-cli login
+if [ -n "$HF_TOKEN" ]; then
+    print_status "HF_TOKEN found in environment — logging in non-interactively..."
+    conda run -n flowgrpo huggingface-cli login --token "$HF_TOKEN"
+else
+    read -p "Do you want to login to HuggingFace now? (y/n) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        conda run -n flowgrpo huggingface-cli login
+    fi
 fi
 
 # Step 6: Setup Weights & Biases
