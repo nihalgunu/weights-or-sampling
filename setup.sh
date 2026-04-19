@@ -179,10 +179,15 @@ fi
 
 # Step 6: Setup Weights & Biases
 print_status "Step 6/6: Setting up Weights & Biases..."
-read -p "Do you want to login to Weights & Biases now? (y/n) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    conda run -n flowgrpo wandb login
+if [ -n "$WANDB_API_KEY" ]; then
+    print_status "WANDB_API_KEY found in environment — logging in non-interactively..."
+    conda run -n flowgrpo wandb login "$WANDB_API_KEY"
+else
+    read -p "Do you want to login to Weights & Biases now? (y/n) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        conda run -n flowgrpo wandb login
+    fi
 fi
 
 # Create output directories
