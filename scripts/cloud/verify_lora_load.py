@@ -34,27 +34,19 @@ def main():
 
     t0 = time.time()
     print(f"[verify] loading {args.model}")
-    from diffusers import StableDiffusion3Pipeline
-    pipe = StableDiffusion3Pipeline.from_pretrained(
-        args.model, torch_dtype=torch.bfloat16
-    ).to("cuda")
-    # Free VRAM — we don't need text encoders beyond the first prompt.
-    if getattr(pipe, "text_encoder_3", None) is not None:
-        pipe.text_encoder_3.to("cpu")
-    torch.cuda.empty_cache()
+    # Use run_smoke_cells' build_pipe so we go through the same code path the
+    # rest of the eval uses — T5 parked on CPU, shuttled to GPU per encode.
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from scripts.cloud.run_smoke_cells import build_pipe, encode_prompt_offloaded
+    pipe = build_pipe(args.model, "cuda", text_encoders_cpu=True, vae_tiling=True)
 
     # One dummy prompt to get a valid embed shape for the transformer.
+    # encode_prompt_offloaded handles T5 shuttle so no device mismatch.
     with torch.no_grad():
-        pos, _neg, pos_p, _neg_p = pipe.encode_prompt(
-            prompt="a verification prompt",
-            prompt_2=None, prompt_3=None,
-            device="cuda", num_images_per_prompt=1,
-            do_classifier_free_guidance=False,
+        pos, _neg, pos_p, _neg_p = encode_prompt_offloaded(
+            pipe, "a verification prompt", "cuda"
         )
-    # Temp move T5 back to CPU (encode_prompt may have pulled it to GPU).
-    if getattr(pipe, "text_encoder_3", None) is not None:
-        pipe.text_encoder_3.to("cpu")
-    torch.cuda.empty_cache()
 
     in_ch = pipe.transformer.config.in_channels  # 16 for SD3.5-M
     torch.manual_seed(0)

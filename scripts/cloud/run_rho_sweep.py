@@ -180,8 +180,8 @@ def main():
             )
             # Sanity assertion: at least one LoRA B weight must be non-zero,
             # otherwise the adapter contributes nothing and we're back to the
-            # silent-no-op bug.
-            import torch
+            # silent-no-op bug. (torch is already imported at module level —
+            # re-importing here would shadow it as a local var in main().)
             b_norms = [
                 p.float().abs().max().item()
                 for n, p in pipe.transformer.named_parameters()
