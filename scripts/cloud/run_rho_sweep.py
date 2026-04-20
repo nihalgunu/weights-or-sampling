@@ -168,8 +168,32 @@ def main():
     if args.checkpoint:
         ckpt = Path(args.checkpoint)
         if (ckpt / "adapter_model.safetensors").exists() or (ckpt / "adapter_model.bin").exists():
-            print(f"Loading LoRA checkpoint from {ckpt}")
-            pipe.load_lora_weights(str(ckpt))
+            # PEFT-saved LoRAs have keys prefixed `base_model.model.*`, which
+            # diffusers' pipe.load_lora_weights does NOT strip for SD3 as of
+            # diffusers 0.37, causing a silent no-op (we hit this — Cell C'
+            # was bit-identical to Cell A' across all 30 prompts). Use PEFT's
+            # own loader instead; it understands its own save format.
+            from peft import PeftModel
+            print(f"Loading LoRA checkpoint (PEFT format) from {ckpt}")
+            pipe.transformer = PeftModel.from_pretrained(
+                pipe.transformer, str(ckpt), is_trainable=False
+            )
+            # Sanity assertion: at least one LoRA B weight must be non-zero,
+            # otherwise the adapter contributes nothing and we're back to the
+            # silent-no-op bug.
+            import torch
+            b_norms = [
+                p.float().abs().max().item()
+                for n, p in pipe.transformer.named_parameters()
+                if "lora_B" in n
+            ]
+            assert b_norms, "no lora_B weights found — LoRA did not attach"
+            max_b = max(b_norms)
+            assert max_b > 1e-8, (
+                f"all lora_B weights are ~zero (max={max_b:.2e}) — adapter "
+                f"is effectively identity. Training didn't move B past init."
+            )
+            print(f"  [sanity] loaded LoRA with max |lora_B| = {max_b:.4e}")
         else:
             print(f"WARN: checkpoint path {ckpt} has no adapter_model.* — skipping load")
     predictor = CLIPPromptPredictor(device=device, torch_dtype=torch.float32)
