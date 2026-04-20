@@ -101,63 +101,45 @@ def setup_model(model_name: str, checkpoint_path: str = None, device: str = "cud
     return pipe
 
 
-def setup_tfg(pipe, guidance_scale: float = 7.5, recurrence_steps: int = 1):
+def setup_tfg(
+    pipe,
+    guidance_scale: float = 1.0,
+    recurrence_steps: int = 1,
+    apply_every_n_steps: int = 4,
+    clip_model_name: str = "openai/clip-vit-large-patch14",
+):
     """
-    Setup TFG-Flow (Training-Free Guidance for flow matching) for SD3.5-M.
+    Install real TFG-Flow guidance on an SD3 pipeline.
 
-    Integrates with repos/TFG/ using TFG-Flow, which extends TFG to flow
-    matching models via a predictor that wraps the GenEval detector.
-    Falls back to a higher guidance_scale if the TFG repo is unavailable.
+    Uses CLIP-prompt-image similarity as the differentiable predictor — GenEval's
+    mmdetection pipeline is not differentiable so cannot be used for guidance; it
+    remains the downstream evaluation metric only. This is the same substitution
+    the upstream TFG paper makes for its image_label_guidance task (CLIP logits).
+
+    No silent fallback: if the guidance modules fail to import or the predictor
+    fails to construct, we raise. A silent "fall back to higher CFG" would look
+    like TFG but measure nothing, which previously produced null experiments.
     """
+    from scripts.tfg_flow import TFGFlowGuidance, patch_scheduler_step
+    from scripts.clip_predictor import CLIPPromptPredictor
+
+    predictor = CLIPPromptPredictor(device=pipe.device, model_name=clip_model_name)
+    tfg_guidance = TFGFlowGuidance(
+        predictor=predictor,
+        guidance_scale=guidance_scale,
+        recurrence_steps=recurrence_steps,
+        apply_every_n_steps=apply_every_n_steps,
+    )
+    patch_scheduler_step(pipe, tfg_guidance)
+
     pipe.tfg_enabled = True
-    pipe.tfg_guidance_scale = guidance_scale
-    pipe.tfg_recurrence_steps = recurrence_steps
-    pipe.tfg_hook = None  # Will hold the actual hook if TFG is available
+    pipe.tfg_hook = tfg_guidance
 
-    # Try to load actual TFG-Flow from the cloned repo
-    tfg_repo = PROJECT_ROOT / "repos/TFG"
-    if tfg_repo.exists():
-        try:
-            sys.path.insert(0, str(tfg_repo))
-            # TFG-Flow wraps the scheduler's step to apply gradient-based guidance
-            # at each denoising step using a differentiable predictor.
-            from guidance.tfg_flow import TFGFlowGuidance  # noqa: F401
-
-            # GenEval predictor: wraps the detector to return a scalar score
-            # for a given latent, enabling gradient-through guidance.
-            from predictors.geneval_predictor import GenEvalPredictor  # noqa: F401
-
-            detector_path = str(PROJECT_ROOT / "repos/geneval/detector_models")
-            predictor = GenEvalPredictor(detector_path=detector_path, device=pipe.device)
-
-            tfg_guidance = TFGFlowGuidance(
-                predictor=predictor,
-                guidance_scale=guidance_scale,
-                recurrence_steps=recurrence_steps,
-            )
-
-            # Patch the pipeline scheduler step to inject TFG guidance
-            original_step = pipe.scheduler.step
-
-            def tfg_step(model_output, timestep, sample, **kwargs):
-                sample = tfg_guidance.apply(model_output, timestep, sample, pipe)
-                return original_step(model_output, timestep, sample, **kwargs)
-
-            pipe.scheduler.step = tfg_step
-            pipe.tfg_hook = tfg_guidance
-
-            print(f"TFG-Flow enabled (repos/TFG): guidance_scale={guidance_scale}, "
-                  f"recurrence_steps={recurrence_steps}")
-            return pipe
-
-        except ImportError as e:
-            print(f"Warning: Could not import TFG-Flow from repos/TFG/: {e}")
-            print("Falling back to higher classifier-free guidance scale as approximation.")
-    else:
-        print("Warning: repos/TFG not found (run setup.sh). "
-              "Falling back to higher guidance_scale approximation.")
-
-    print(f"TFG fallback: using guidance_scale={guidance_scale} (recurrence not applied)")
+    print(
+        f"TFG-Flow enabled: guidance_scale={guidance_scale}, "
+        f"recurrence_steps={recurrence_steps}, apply_every_n_steps={apply_every_n_steps}, "
+        f"predictor=CLIP({clip_model_name})"
+    )
     return pipe
 
 
@@ -196,25 +178,46 @@ def generate_images(
 
         start_time = time.time()
 
-        # Generate image
-        if use_tfg and hasattr(pipe, 'tfg_enabled') and pipe.tfg_enabled:
-            # TFG-enhanced generation
-            # Note: Full TFG implementation requires modifying the sampling loop
-            # This is a simplified version using higher guidance scale
-            image = pipe(
-                prompt,
-                num_inference_steps=num_inference_steps,
-                guidance_scale=pipe.tfg_guidance_scale,
-                generator=generator,
-            ).images[0]
-        else:
-            # Standard generation
-            image = pipe(
-                prompt,
-                num_inference_steps=num_inference_steps,
-                guidance_scale=guidance_scale,
-                generator=generator,
-            ).images[0]
+        if use_tfg and getattr(pipe, "tfg_enabled", False):
+            # Pre-encode the prompt so the TFG hook can re-run the transformer
+            # in a grad scope without re-tokenizing every step. We encode only
+            # the conditional branch because the hook computes x_0 from the
+            # conditional velocity (CFG mixing happens separately in pipe()).
+            with torch.no_grad():
+                prompt_embeds, _neg_embeds, pooled_prompt_embeds, _neg_pooled = (
+                    pipe.encode_prompt(
+                        prompt=prompt,
+                        prompt_2=None,
+                        prompt_3=None,
+                        device=pipe.device,
+                        num_images_per_prompt=1,
+                        do_classifier_free_guidance=False,
+                    )
+                )
+            from scripts.tfg_flow import PromptContext
+
+            pipe.tfg_hook.set_prompt_context(
+                PromptContext(
+                    prompt_embeds=prompt_embeds,
+                    pooled_prompt_embeds=pooled_prompt_embeds,
+                    prompt_text=[prompt],
+                )
+            )
+
+        image = pipe(
+            prompt,
+            num_inference_steps=num_inference_steps,
+            guidance_scale=guidance_scale,
+            generator=generator,
+        ).images[0]
+
+        if use_tfg and getattr(pipe, "tfg_enabled", False):
+            fires = pipe.tfg_hook.fires_this_run
+            if fires == 0:
+                raise RuntimeError(
+                    f"TFG enabled but guidance did not fire for prompt '{prompt[:60]}'. "
+                    "Check apply_every_n_steps and apply_range vs num_inference_steps."
+                )
 
         gen_time = time.time() - start_time
 
@@ -255,10 +258,13 @@ def main():
                         help="Output directory for images")
     parser.add_argument("--use_tfg", type=str, default="false",
                         help="Whether to use TFG guidance")
-    parser.add_argument("--tfg_guidance_scale", type=float, default=7.5,
-                        help="TFG guidance scale")
+    parser.add_argument("--tfg_guidance_scale", type=float, default=1.0,
+                        help="TFG gradient step size (rho). 0.5-2.0 is typical; "
+                             "the old default 7.5 was the CFG-scale fallback, not TFG strength.")
     parser.add_argument("--tfg_recurrence_steps", type=int, default=1,
-                        help="TFG recurrence steps")
+                        help="TFG refine-renoise cycles per diffusion step")
+    parser.add_argument("--tfg_apply_every_n_steps", type=int, default=4,
+                        help="Fire TFG on every Nth scheduler step (cost control)")
     parser.add_argument("--checkpoint", type=str, default=None,
                         help="Path to finetuned checkpoint")
     parser.add_argument("--prompts_file", type=str, default=None,
@@ -309,7 +315,12 @@ def main():
 
     # Setup TFG if enabled
     if use_tfg:
-        pipe = setup_tfg(pipe, args.tfg_guidance_scale, args.tfg_recurrence_steps)
+        pipe = setup_tfg(
+            pipe,
+            guidance_scale=args.tfg_guidance_scale,
+            recurrence_steps=args.tfg_recurrence_steps,
+            apply_every_n_steps=args.tfg_apply_every_n_steps,
+        )
 
     # Generate images
     gen_config = config.get('generation', {})

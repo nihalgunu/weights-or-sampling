@@ -14,10 +14,19 @@ build/
 # Conda
 *.conda
 
-# Outputs (large files)
+# Outputs — large binaries only. Per-cell JSON summaries and training logs
+# stay tracked so result.md is reproducible from commit alone.
 outputs/images/
 outputs/checkpoints/
+outputs/**/cell_a/
+outputs/**/cell_b/
+outputs/**/cell_a_ref/
+outputs/**/cell_b_rho*/
+outputs/**/*.png
 models/
+
+# Security: instance id + any local secrets file
+.lambda_instance
 
 # Logs
 logs/*.out
