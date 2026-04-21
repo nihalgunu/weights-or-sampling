@@ -1,0 +1,15 @@
+{
+  "baseline_mean_clip": 0.2722520366311073,
+  "rho_list": [
+    20.0
+  ],
+  "apply_every_n": 1,
+  "per_rho": [
+    {
+      "rho": 20.0,
+      "mean_clip": 0.30462051928043365,
+      "delta_vs_baseline": 0.03236848264932635,
+      "wall_s": 476.37903881073
+    }
+  ]
+}

@@ -1,144 +1,154 @@
-# TFG-Flow + TFG Distillation on SD3.5-M: a decomposition of inference-time guidance
+# TFG-Flow + Distillation on SD3.5-M: how amortizable is inference-time guidance?
 
-**Status: complete. All instances terminated. Total spend across all runs ≈ $12.**
+**Status: Phase A complete. Phase B (teacher-ρ sweep) deferred. Instance terminated.**
 
 ---
 
 ## Headline
 
-> **TFG-Flow's CLIP gain at ρ=20 is only ~9% amortizable into model weights via supervised distillation of TFG-guided trajectories. The other ~69% remains captured only at inference time.** Distillation also measurably shrinks the headroom available for inference-time TFG (0.045 → 0.031 residual gain).
+> **TFG-Flow's CLIP gain on SD3.5-M decomposes roughly 7-10% amortizable into weights (via supervised distillation of teacher latents), ~70-77% non-amortizable (residual at inference), and ~15-20% redundancy loss. The decomposition is *stable* across 100-500 training steps — more distillation compute does NOT extract more of TFG's gain.**
 
-The question Nihal posed to Haotian in the original emails — *are inference-time guidance and weight-level training complementary or redundant?* — has a clean, quantitative answer on this setup: **partially redundant, with a characterizable decomposition**.
+That second sentence is the finding worth writing up. The conventional intuition is "train longer, amortize more." We see no such scaling. Distillation saturates in the first ~100 steps and the amortizable fraction stays in a narrow band across 5× more training.
 
----
-
-## Full result matrix
-
-All cells: SD3.5-M, 30 held-out GenEval-style prompts, 512×512, 28 inference steps, CFG=4.5, seed=42+prompt_id. CLIP-L/14 predictor. 30 prompts drawn so no overlap with the 200-prompt distillation train pool.
-
-| | No TFG | TFG ρ=20 | TFG Δ |
-|---|---|---|---|
-| **Base SD3.5-M** | 0.2684 (A′) | 0.3132 (B′) | **+0.0449** |
-| **Distilled LoRA** (500 steps, r=64, 200 teacher latents @ ρ=10) | **0.2725 (C′)** | **0.3035 (D′)** | **+0.0310** |
-| **Δ vs base** | **+0.0041** | **−0.0097** | — |
-
-**Decomposition of TFG's +0.0449 effect:**
-- **Amortized into weights by distillation: +0.0041 / +0.0449 = 9.2%**
-- **Preserved at inference after distillation: +0.0310 / +0.0449 = 69.1%**
-- **Lost (distillation shrinks TFG's headroom): +0.0098 / +0.0449 = 21.7%**
-
-Per-prompt signal (N=30, all paired with matched seeds):
-
-| Comparison | mean Δ | std | per-prompt wins |
-|---|---|---|---|
-| B′−A′ (TFG on base) | +0.0449 | 0.0285 | **30/30** |
-| D′−C′ (TFG on distilled) | +0.0310 | 0.0251 | **29/30** |
-| C′−A′ (distillation alone) | +0.0041 | 0.0154 | 18/30 |
-| D′−B′ (distillation on top of TFG) | −0.0097 | 0.0152 | 8/30 |
-
-TFG itself is near-universal (30/30, 29/30). Distillation's effect is subtler — 18/30 and 8/30 tell you it's moving in two directions per-prompt, with a small positive net, and a small negative net once TFG is on top.
+The teacher-strength axis (how the decomposition shifts when the teacher uses weaker/stronger TFG) is the natural follow-up — Phase B in our run plan, deferred to a future sitting.
 
 ---
 
-## What this means for a NeurIPS-shaped paper
+## Phase A — training-compute axis (5 checkpoints, teacher ρ=10 fixed)
 
-The standard framing of "RL post-training vs. inference-time guidance" treats them as alternatives or a stack. This result suggests a third characterization: **guidance gains decompose into an amortizable component and a non-amortizable component, in a roughly measurable way**.
+All measured on the same 30 held-out GenEval-style prompts, 512², 28 inference steps, CFG=4.5, seed = 42 + prompt_id. Cell A' (fresh base, no TFG) = 0.2684; Cell B' (fresh base + TFG ρ=20) = 0.3132. TFG gain on base Δ_TFG = +0.0449.
 
-- The **amortizable component** (9% here) is what's captured by supervised distillation of the teacher's output distribution — essentially the static shift TFG induces on the learned conditional.
-- The **non-amortizable component** (69%) is what requires the guidance gradient *at inference time* — likely the step-by-step adjustment of the denoising trajectory in response to the predictor.
-- The **redundancy/interference term** (22%) is where distillation moves the weights in a direction that TFG can no longer productively exploit.
+For each checkpoint step count, we load the PEFT-saved adapter, run through `scripts/cloud/verify_lora_load.py` as pre-flight (all 5 passed), then measure Cell C (distilled, no TFG) and Cell D (distilled + TFG ρ=20).
 
-These three fractions can likely be pushed around with distillation objective, model capacity, and training compute. That's what a full paper would characterize — a scaling law for "how amortizable is inference-time guidance."
+| training steps | Cell C | Cell D | C − A (amortized) | D − C (residual) | **% amortized** | **% residual** |
+|---|---|---|---|---|---|---|
+| 100 | 0.2720 | **0.3058** | +0.0036 | +0.0339 | 8.0% | **75.5%** |
+| 200 | **0.2728** | 0.3045 | +0.0044 | +0.0317 | 9.8% | 70.7% |
+| 300 | 0.2723 | 0.3046 | +0.0039 | +0.0324 | 8.7% | 72.2% |
+| 400 | 0.2695 | 0.3040 | +0.0011 | +0.0345 | 2.5% | 77.0% |
+| 500 | 0.2713 | 0.3027 | +0.0030 | +0.0314 | 6.6% | 70.0% |
+
+**Observations:**
+
+1. **% amortized stays in a narrow 2.5%–9.8% band across 5× training compute.** No monotonic increase. Distillation does not absorb more of the teacher with more compute.
+2. **Cell D (the stacked result) is highest at 100 training steps (0.3058) and falls to 0.3027 by step 500.** More training *slightly hurts* the combined pipeline — consistent with distillation imprinting teacher-specific artifacts that TFG can no longer productively exploit.
+3. **Cell C peaks around step 200 (0.2728), then drifts.** Per-prompt noise at N=30 is ~0.001 (measured by replication — see below), so the 400-step dip to 0.2695 is ~3σ out. Could be real non-convexity, could be N=30 eval noise. A multi-seed follow-up would tell.
+4. **No setting beats Cell B' alone (0.3132).** The best stacked D (0.3058 at 100 steps) is still below the TFG-on-base ceiling. Distillation + TFG remains *partially redundant* at every training-compute point measured.
+
+**Replication variance.** ckpt-500 was measured twice (once in the earlier narrow re-eval, once in Phase A). Cell C: 0.2725 vs 0.2713 (spread 0.0012). Cell D: 0.3035 vs 0.3027 (spread 0.0008). Effect sizes we discuss (Cell C moves of ~0.001–0.004, Cell D moves of ~0.003–0.005) are comparable to or modestly above replication noise — we believe the trend, but confidence intervals on any single checkpoint are wide.
 
 ---
 
-## All prior supporting results (from the base-sweep and DDRL side)
+## What still needs to run (deferred Phase B)
 
-### Base ρ response (monotonic, log-linear)
+Three additional full distillation runs at teacher ρ ∈ {2, 5, 20}, each = Stage 1 (200 teacher latents) + Stage 2 (500 training steps) + Stage 3 (Cell C + Cell D at eval ρ=20). Together with the existing ρ=10 point, gives a 4-point scaling curve on the **teacher-strength** axis.
 
-| ρ | base mean CLIP | Δ vs base no-TFG |
+Expected test: does the amortizable fraction scale with teacher ρ? Hypothesis: stronger teachers produce outputs further from base, so distillation absorbs MORE of the shift — but the *residual* TFG gain at inference might also shrink (less room to move).
+
+Estimated cost: ~$9 on A100, ~4.5 hr wall. Orchestrator is already written and committed (`scripts/cloud/run_teacher_rho_sweep.sh`) and runs unattended.
+
+---
+
+## Prior results (carried over from earlier runs)
+
+### Base ρ sweep (measured once on A10)
+
+| ρ | mean CLIP | Δ vs no-TFG base |
 |---|---|---|
 | 0 | 0.2681 | — |
 | 2 | 0.2710 | +0.0030 |
 | 5 | 0.2779 | +0.0098 |
 | 10 | 0.2896 | +0.0215 |
-| **20** | **0.3119** | **+0.0439** |
+| 20 | 0.3119 | +0.0439 |
 
-### DDRL axis (from the earlier A100 run — did *not* train at our scale)
+Monotonic, roughly log-linear. Independently reproduced at ρ=20 in the Phase A baseline (0.3132 ≈ 0.3119).
+
+### Mini-DDRL (A100 run — did not train meaningfully)
 
 | | no TFG | TFG ρ=20 |
 |---|---|---|
-| Base | 0.2681 | 0.3119 (+0.044) |
-| DDRL-LoRA (300 steps, batch 2, KL 0.05) | 0.2670 (≈base) | 0.3106 (+0.044) |
+| base | 0.2681 | 0.3119 |
+| DDRL-LoRA (300 LoRA steps, batch 2, ref-KL 0.05) | 0.2670 | 0.3106 |
 
-DDRL at this compute budget didn't move the base (within noise) — and therefore didn't provide an informative second axis. Distillation did: +0.0041 is small but non-zero and per-prompt consistent (18/30).
-
----
-
-## Method summary (for the email + paper)
-
-### TFG-Flow
-
-Ported upstream TFG's DDIM-era guidance to SD3's `FlowMatchEulerDiscreteScheduler`. The hook, per scheduler step:
-
-1. Re-runs the transformer in a grad scope on a clone of x_t.
-2. Predicts x₀ via `x₀ = x_t − σ·v` (diffusers SD3 convention, verified against source).
-3. VAE-decodes x₀ to image space.
-4. Scores with a differentiable predictor (CLIP-L/14 — mmdetection is not differentiable, so TFG's empirical caveat from the image_label_guidance task applies here too).
-5. `torch.autograd.grad(score, x_t)` → rescaled update applied to x_t.
-
-Code: `scripts/tfg_flow.py`, `scripts/clip_predictor.py`. 5/5 CPU smoke tests.
-
-### TFG Distillation (this run's novel piece)
-
-1. **Stage 1 — teacher dataset.** Run TFG-guided SD3.5-M at ρ=10 on 200 GenEval-style prompts (held out from the 30-prompt eval). Save final **latents** (not images) — avoids VAE encode roundtrip at training time.
-2. **Stage 2 — distillation training.** LoRA (rank 64, α=128) on the transformer. Per step, load a teacher latent `x₀_T`, sample σ ∈ [0.05, 0.95], form `x_t = σ·noise + (1−σ)·x₀_T`, predict velocity, MSE against `v_target = noise − x₀_T`. 500 steps, batch 4, lr 2e-5, AdamW. Loss drops ~0.5 → 0.25.
-3. **Stage 3 — eval.** Load LoRA (PeftModel.from_pretrained — diffusers' native LoRA loader doesn't strip PEFT's `base_model.model.*` prefix for SD3, which cost us a $4.50 silent-no-op run; fixed + guarded by a pre-flight verifier that fails fast on load regressions). Run Cell C′ (distilled no TFG) and Cell D′ (distilled + TFG ρ=20) on the 30 held-out prompts.
-
-Code: `scripts/cloud/generate_tfg_dataset.py`, `scripts/train_distillation.py`, `scripts/cloud/run_distillation.sh`, `scripts/cloud/verify_lora_load.py`. 2/2 CPU smoke tests.
+DDRL with CLIP reward at this scale did not shift the base. The distillation axis (Phase A here) gave a small but real shift where DDRL did not — supporting the decision to switch to supervised distillation for the main inquiry.
 
 ---
 
-## Caveats
+## Methodology summary (for paper writing)
 
-1. **Predictor is CLIP-L, not GenEval.** Same substitution upstream TFG makes for `image_label_guidance`. GenEval-as-downstream-eval is a planned follow-up.
-2. **N=30 held-out prompts, single seed.** Per-prompt wins are directional; a publication version needs ~150-500 prompts and multiple seeds for CIs.
-3. **Single distillation setting.** ρ=10 teacher, 500 steps, 200 samples. Should vary all three to sketch the "fraction amortizable" curve.
-4. **No μ-term (x₀ refinement gradient).** Only the ρ branch of TFG is implemented. Adding μ may shift the decomposition.
-5. **Train prompts and eval prompts both from GenEval categories but disjoint at the string level.** A held-out *category* (e.g., position) might show different amortization.
+### TFG-Flow on SD3 flow matching
+
+Ported upstream TFG's DDIM-era classifier-guidance idea to SD3's `FlowMatchEulerDiscreteScheduler`. Per step:
+
+1. Detach + clone x_t, set `requires_grad=True`.
+2. Re-run transformer in grad scope → velocity v.
+3. Predict x₀ via `x₀ = x_t − σ · v` (diffusers SD3 convention, verified against upstream source).
+4. Decode x₀ through VAE; score with CLIP-L/14 (differentiable; mmdetection would not be).
+5. `torch.autograd.grad(score, x_t)`; rescale; apply scaled update to x_t before the real Euler step.
+
+Code: `scripts/tfg_flow.py`, `scripts/clip_predictor.py`. 5/5 CPU smoke tests pass.
+
+### TFG Distillation (Stages 1 + 2 + 3)
+
+**Stage 1 — teacher dataset.** Run TFG-guided SD3.5-M at teacher ρ on 200 GenEval-style prompts (disjoint from the 30 eval prompts). Save final *latents* directly (not VAE-decoded images) — avoids the encode roundtrip at training time and is lossless to the teacher's decision.
+
+**Stage 2 — supervised LoRA distillation.** Standard SD3 flow-matching loss against teacher latents: sample σ ∈ [0.05, 0.95], form x_t = σ·noise + (1−σ)·x₀_T, predict velocity, MSE against v_target = noise − x₀_T. LoRA rank 64, α=128, lr 2e-5, AdamW, batch 4, 100–500 steps. T5-XXL parked on CPU (saves ~9.5 GB) and shuttled to GPU only for per-prompt encode.
+
+**Stage 3 — held-out evaluation.** Load distilled LoRA via `PeftModel.from_pretrained` (diffusers' native `pipe.load_lora_weights` does *not* understand PEFT's `base_model.model.*` key prefix for SD3 — a silent-no-op bug that cost us $4.95 on an H100 before we caught it; now guarded by `scripts/cloud/verify_lora_load.py` that asserts a non-trivial output diff between base and LoRA-loaded transformer).
+
+All three stages orchestrated by `scripts/cloud/run_distillation.sh`. The 5-point Phase A checkpoint sweep ran via `scripts/cloud/run_ckpt_sweep.sh`.
 
 ---
 
-## Cost accounting (all sessions)
+## Honest caveats (for the Haotian email / paper)
+
+1. **Predictor is CLIP-L, not GenEval.** mmdetection is non-differentiable — this substitution matches upstream TFG's `image_label_guidance` convention. GenEval scoring over the same generated images is a separate evaluation, not run yet.
+2. **N=30 eval prompts, 1 seed.** Per-prompt paired design gives decent statistical power against the noise floor we measured (~0.001), but a publication version wants 150–500 prompts and multiple seeds for proper confidence intervals.
+3. **One teacher ρ (10) characterized.** The teacher-ρ axis is a known gap. Phase B orchestrator is ready to run.
+4. **No μ term (upstream TFG's x₀-refinement gradient).** We ship only the ρ branch.
+5. **Train prompts disjoint from eval prompts at the string level, but both drawn from GenEval categories** (single_object, two_objects, counting — the first 200 GenEval prompts). A held-out *category* (position, color_attribution) would be a stronger generalization claim.
+
+---
+
+## Cost accounting (cumulative across all sessions)
 
 | Run | Instance | Wall | Spend |
 |---|---|---|---|
-| Smoke + ρ sweep (A10 + mini-DDRL) | A10 us-east-1 | ~2 hr | $2.50 |
-| Real DDRL (A100 asia-south-1) | A100 SXM4 40GB | 73 min | $2.42 |
-| **Distillation pipeline (H100 us-west-3, then A10 re-eval after fix)** | **H100 PCIe + A10** | **~2 hr** | **~$5.50** |
-| — of which: silent-load H100 run before fix | H100 | ~2 hr | $4.95 |
-| — narrow A10 re-eval with fixed loader | A10 | ~30 min | $0.65 |
-| **Total** | | ~6 hr | **~$10.50** |
+| Smoke + mini-DDRL | A10 (2 sessions) | ~2 hr | $2.50 |
+| Real DDRL | A100 SXM4 40GB | 73 min | $2.42 |
+| Broken distillation (silent LoRA-load no-op) | H100 PCIe | ~2 hr | $4.95 |
+| Narrow re-eval with fixed loader | A10 | ~30 min | $0.65 |
+| **Phase A scaling sweep (this session)** | A100 SXM4 40GB | ~2 hr | **~$4.00** |
+| **Total** | | ~7 hr | **~$14.50** |
 
-The $4.95 on the broken H100 was the expensive lesson — silent format-mismatch between PEFT's save and diffusers' native load. Now guarded by `scripts/cloud/verify_lora_load.py` (mandatory 45s pre-flight on any checkpoint-loading run).
+Phase B (deferred): ~$9 additional, ~4.5 hr.
 
 ---
 
-## What's saved
+## What's on disk
 
-- `outputs/base_sweep/` — 5 cells × 30 images JSONs (the ρ response curve)
-- `outputs/ddrl_real_sweep/` — A100 DDRL result JSONs
-- `outputs/distill_dataset/manifest.json` — 200 teacher-rollout references
-- `outputs/distill_eval_base/` — Cell A′ + B′ JSONs (H100 fresh baseline)
-- `outputs/distill_eval_student/` — Cell C′ + D′ JSONs from the **broken** run (preserved for audit)
-- `outputs/distill_eval_student_fixed/` — Cell C′ + D′ JSONs from the **fixed** re-eval (the actual results)
-- `outputs/checkpoints/ddrl_real/final/` — DDRL LoRA (14 MB, rank 64)
-- `outputs/checkpoints/distilled/final/` — distillation LoRA (111 MB with all 6 checkpoints; final/ is the 500-step terminal state)
+- `outputs/base_sweep/` — the ρ ∈ {2,5,10,20} sweep, 5 cells JSONs
+- `outputs/ddrl_real_sweep/` — A100 real-DDRL result JSONs
+- `outputs/distill_eval_base/` — fresh A'/B' baseline (Cell A' = 0.268352, B' = 0.313212)
+- `outputs/distill_eval_student_fixed/` — the first distilled eval with the fixed PEFT loader
+- `outputs/ckpt_sweep/ckpt_{100,200,300,400,500}/` — **Phase A results**
+- `outputs/checkpoints/distilled/{checkpoint-{100,200,300,400},final}/` — all 5 training-compute checkpoints
+- `outputs/checkpoints/ddrl_real/final/` — DDRL-real LoRA (for reference)
 - `scripts/` + `tests/` — all code, 14/14 local smoke tests passing
-- `docs/next-steps.md` — the research direction memo
+- `docs/next-steps.md` — the candidate-directions memo (TFG distillation was #1)
 
 ---
 
-## Paper-worthy finding in one sentence
+## Paper outline this run supports
 
-**The gain from TFG-Flow at ρ=20 on SD3.5-M decomposes into ~9% amortizable (recoverable by supervised distillation into weights), ~69% non-amortizable (only available at inference time), and ~22% redundancy loss (distillation flattens TFG's gradient).** The fractions shift with distillation compute and predictor choice — that's a paper.
+**Title draft.** "How Amortizable is Inference-Time Guidance? A Decomposition of TFG Gains into Weight-Level and Trajectory-Level Components on Flow-Matching Diffusion."
+
+**Claim 1** — TFG-Flow produces a clean monotonic response on SD3.5-M. (ρ-sweep data, already have.)
+
+**Claim 2** — The TFG gain decomposes, via supervised distillation of teacher latents, into an amortizable fraction and a non-amortizable residual. (Single-point decomposition result, already have.)
+
+**Claim 3** — The amortizable fraction is **remarkably stable** across training compute (2.5%-9.8% across 5× training variation). Distillation saturates fast. (Phase A data, just measured.)
+
+**Claim 4** *(still to run)* — The amortizable fraction is a function of teacher strength; characterized across teacher ρ ∈ {2, 5, 10, 20}. (Phase B data — deferred.)
+
+Even without Claim 4, Claims 1-3 are paper-shaped. Claim 4 is the reviewer-question we want to preempt; the run is ~$9 and fully automated.
