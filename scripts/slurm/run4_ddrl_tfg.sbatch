@@ -1,10 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=run4_ddrl_tfg
-#SBATCH --partition=gpu
+#SBATCH --partition=a10
+#SBATCH --account=bera89-k
 #SBATCH --gres=gpu:1
 #SBATCH --time=12:00:00
 #SBATCH --mem=64G
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=20
 #SBATCH --output=logs/run4_ddrl_tfg_%j.out
 #SBATCH --error=logs/run4_ddrl_tfg_%j.err
 
@@ -22,25 +23,24 @@ echo "Node: $SLURMD_NODENAME"
 echo "Time: $(date)"
 echo "=============================================="
 
-# Load modules
-module load cuda/11.8 2>/dev/null || true
-module load anaconda 2>/dev/null || true
+export RCAC_SCRATCH=${RCAC_SCRATCH:-/scratch/gilbreth/${USER}}
+export CONDA_ENVS_PATH="$RCAC_SCRATCH/conda/envs"
+export CONDA_PKGS_DIRS="$RCAC_SCRATCH/conda/pkgs"
+export PIP_CACHE_DIR="$RCAC_SCRATCH/pip/cache"
+export HF_HOME="$RCAC_SCRATCH/.cache/huggingface"
 
-eval "$(conda shell.bash hook)"
+source /apps/external/conda/2025.09/etc/profile.d/conda.sh
 conda activate flowgrpo
 
 echo "GPU Info:"
 nvidia-smi --query-gpu=name,memory.total --format=csv
 
-# Check if checkpoint exists
 CHECKPOINT_PATH="outputs/checkpoints/ddrl/final"
 if [ ! -d "$CHECKPOINT_PATH" ]; then
     echo "ERROR: DDRL checkpoint not found at $CHECKPOINT_PATH"
-    echo "Please run train_ddrl.sbatch first"
     exit 1
 fi
 
-# Run image generation with DDRL model + TFG guidance
 echo ""
 echo "Starting image generation with DDRL model + TFG..."
 python scripts/generate_images.py \
@@ -52,7 +52,6 @@ python scripts/generate_images.py \
     --tfg_recurrence_steps 1 \
     --checkpoint "$CHECKPOINT_PATH"
 
-# Run evaluation
 echo ""
 echo "Starting GenEval evaluation..."
 python scripts/evaluate_geneval.py \
@@ -60,7 +59,6 @@ python scripts/evaluate_geneval.py \
     --output_file outputs/results/run4_ddrl_tfg.json \
     --detector_path repos/geneval/detector_models
 
-# Log to W&B
 echo ""
 echo "Logging results to W&B..."
 python scripts/log_results.py \

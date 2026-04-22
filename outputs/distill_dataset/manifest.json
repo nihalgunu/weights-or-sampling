@@ -1,0 +1,1613 @@
+{
+  "model": "stabilityai/stable-diffusion-3.5-medium",
+  "tfg_rho": 10.0,
+  "tfg_every_n": 1,
+  "num_inference_steps": 28,
+  "guidance_scale": 4.5,
+  "height": 512,
+  "width": 512,
+  "seed_base": 1000,
+  "items": [
+    {
+      "id": 0,
+      "prompt": "a photo of a bench",
+      "tag": "single_object",
+      "seed": 1000,
+      "latent_path": "latents/0000.pt",
+      "fires": 20
+    },
+    {
+      "id": 1,
+      "prompt": "a photo of a cow",
+      "tag": "single_object",
+      "seed": 1001,
+      "latent_path": "latents/0001.pt",
+      "fires": 20
+    },
+    {
+      "id": 2,
+      "prompt": "a photo of a carrot",
+      "tag": "single_object",
+      "seed": 1002,
+      "latent_path": "latents/0002.pt",
+      "fires": 20
+    },
+    {
+      "id": 3,
+      "prompt": "a photo of a suitcase",
+      "tag": "single_object",
+      "seed": 1003,
+      "latent_path": "latents/0003.pt",
+      "fires": 20
+    },
+    {
+      "id": 4,
+      "prompt": "a photo of a fork",
+      "tag": "single_object",
+      "seed": 1004,
+      "latent_path": "latents/0004.pt",
+      "fires": 20
+    },
+    {
+      "id": 5,
+      "prompt": "a photo of a surfboard",
+      "tag": "single_object",
+      "seed": 1005,
+      "latent_path": "latents/0005.pt",
+      "fires": 20
+    },
+    {
+      "id": 6,
+      "prompt": "a photo of a refrigerator",
+      "tag": "single_object",
+      "seed": 1006,
+      "latent_path": "latents/0006.pt",
+      "fires": 20
+    },
+    {
+      "id": 7,
+      "prompt": "a photo of a cup",
+      "tag": "single_object",
+      "seed": 1007,
+      "latent_path": "latents/0007.pt",
+      "fires": 20
+    },
+    {
+      "id": 8,
+      "prompt": "a photo of a microwave",
+      "tag": "single_object",
+      "seed": 1008,
+      "latent_path": "latents/0008.pt",
+      "fires": 20
+    },
+    {
+      "id": 9,
+      "prompt": "a photo of a potted plant",
+      "tag": "single_object",
+      "seed": 1009,
+      "latent_path": "latents/0009.pt",
+      "fires": 20
+    },
+    {
+      "id": 10,
+      "prompt": "a photo of a snowboard",
+      "tag": "single_object",
+      "seed": 1010,
+      "latent_path": "latents/0010.pt",
+      "fires": 20
+    },
+    {
+      "id": 11,
+      "prompt": "a photo of a zebra",
+      "tag": "single_object",
+      "seed": 1011,
+      "latent_path": "latents/0011.pt",
+      "fires": 20
+    },
+    {
+      "id": 12,
+      "prompt": "a photo of a parking meter",
+      "tag": "single_object",
+      "seed": 1012,
+      "latent_path": "latents/0012.pt",
+      "fires": 20
+    },
+    {
+      "id": 13,
+      "prompt": "a photo of a spoon",
+      "tag": "single_object",
+      "seed": 1013,
+      "latent_path": "latents/0013.pt",
+      "fires": 20
+    },
+    {
+      "id": 14,
+      "prompt": "a photo of a skateboard",
+      "tag": "single_object",
+      "seed": 1014,
+      "latent_path": "latents/0014.pt",
+      "fires": 20
+    },
+    {
+      "id": 15,
+      "prompt": "a photo of a car",
+      "tag": "single_object",
+      "seed": 1015,
+      "latent_path": "latents/0015.pt",
+      "fires": 20
+    },
+    {
+      "id": 16,
+      "prompt": "a photo of a motorcycle",
+      "tag": "single_object",
+      "seed": 1016,
+      "latent_path": "latents/0016.pt",
+      "fires": 20
+    },
+    {
+      "id": 17,
+      "prompt": "a photo of a traffic light",
+      "tag": "single_object",
+      "seed": 1017,
+      "latent_path": "latents/0017.pt",
+      "fires": 20
+    },
+    {
+      "id": 18,
+      "prompt": "a photo of a book",
+      "tag": "single_object",
+      "seed": 1018,
+      "latent_path": "latents/0018.pt",
+      "fires": 20
+    },
+    {
+      "id": 19,
+      "prompt": "a photo of a couch",
+      "tag": "single_object",
+      "seed": 1019,
+      "latent_path": "latents/0019.pt",
+      "fires": 20
+    },
+    {
+      "id": 20,
+      "prompt": "a photo of a backpack",
+      "tag": "single_object",
+      "seed": 1020,
+      "latent_path": "latents/0020.pt",
+      "fires": 20
+    },
+    {
+      "id": 21,
+      "prompt": "a photo of a computer keyboard",
+      "tag": "single_object",
+      "seed": 1021,
+      "latent_path": "latents/0021.pt",
+      "fires": 20
+    },
+    {
+      "id": 22,
+      "prompt": "a photo of a toaster",
+      "tag": "single_object",
+      "seed": 1022,
+      "latent_path": "latents/0022.pt",
+      "fires": 20
+    },
+    {
+      "id": 23,
+      "prompt": "a photo of a bird",
+      "tag": "single_object",
+      "seed": 1023,
+      "latent_path": "latents/0023.pt",
+      "fires": 20
+    },
+    {
+      "id": 24,
+      "prompt": "a photo of a bowl",
+      "tag": "single_object",
+      "seed": 1024,
+      "latent_path": "latents/0024.pt",
+      "fires": 20
+    },
+    {
+      "id": 25,
+      "prompt": "a photo of a tie",
+      "tag": "single_object",
+      "seed": 1025,
+      "latent_path": "latents/0025.pt",
+      "fires": 20
+    },
+    {
+      "id": 26,
+      "prompt": "a photo of a laptop",
+      "tag": "single_object",
+      "seed": 1026,
+      "latent_path": "latents/0026.pt",
+      "fires": 20
+    },
+    {
+      "id": 27,
+      "prompt": "a photo of a computer mouse",
+      "tag": "single_object",
+      "seed": 1027,
+      "latent_path": "latents/0027.pt",
+      "fires": 20
+    },
+    {
+      "id": 28,
+      "prompt": "a photo of a sandwich",
+      "tag": "single_object",
+      "seed": 1028,
+      "latent_path": "latents/0028.pt",
+      "fires": 20
+    },
+    {
+      "id": 29,
+      "prompt": "a photo of a baseball bat",
+      "tag": "single_object",
+      "seed": 1029,
+      "latent_path": "latents/0029.pt",
+      "fires": 20
+    },
+    {
+      "id": 30,
+      "prompt": "a photo of a train",
+      "tag": "single_object",
+      "seed": 1030,
+      "latent_path": "latents/0030.pt",
+      "fires": 20
+    },
+    {
+      "id": 31,
+      "prompt": "a photo of a cell phone",
+      "tag": "single_object",
+      "seed": 1031,
+      "latent_path": "latents/0031.pt",
+      "fires": 20
+    },
+    {
+      "id": 32,
+      "prompt": "a photo of a chair",
+      "tag": "single_object",
+      "seed": 1032,
+      "latent_path": "latents/0032.pt",
+      "fires": 20
+    },
+    {
+      "id": 33,
+      "prompt": "a photo of a tv",
+      "tag": "single_object",
+      "seed": 1033,
+      "latent_path": "latents/0033.pt",
+      "fires": 20
+    },
+    {
+      "id": 34,
+      "prompt": "a photo of a broccoli",
+      "tag": "single_object",
+      "seed": 1034,
+      "latent_path": "latents/0034.pt",
+      "fires": 20
+    },
+    {
+      "id": 35,
+      "prompt": "a photo of a bed",
+      "tag": "single_object",
+      "seed": 1035,
+      "latent_path": "latents/0035.pt",
+      "fires": 20
+    },
+    {
+      "id": 36,
+      "prompt": "a photo of a skis",
+      "tag": "single_object",
+      "seed": 1036,
+      "latent_path": "latents/0036.pt",
+      "fires": 20
+    },
+    {
+      "id": 37,
+      "prompt": "a photo of a handbag",
+      "tag": "single_object",
+      "seed": 1037,
+      "latent_path": "latents/0037.pt",
+      "fires": 20
+    },
+    {
+      "id": 38,
+      "prompt": "a photo of a pizza",
+      "tag": "single_object",
+      "seed": 1038,
+      "latent_path": "latents/0038.pt",
+      "fires": 20
+    },
+    {
+      "id": 39,
+      "prompt": "a photo of a frisbee",
+      "tag": "single_object",
+      "seed": 1039,
+      "latent_path": "latents/0039.pt",
+      "fires": 20
+    },
+    {
+      "id": 40,
+      "prompt": "a photo of a scissors",
+      "tag": "single_object",
+      "seed": 1040,
+      "latent_path": "latents/0040.pt",
+      "fires": 20
+    },
+    {
+      "id": 41,
+      "prompt": "a photo of a bottle",
+      "tag": "single_object",
+      "seed": 1041,
+      "latent_path": "latents/0041.pt",
+      "fires": 20
+    },
+    {
+      "id": 42,
+      "prompt": "a photo of an elephant",
+      "tag": "single_object",
+      "seed": 1042,
+      "latent_path": "latents/0042.pt",
+      "fires": 20
+    },
+    {
+      "id": 43,
+      "prompt": "a photo of a toilet",
+      "tag": "single_object",
+      "seed": 1043,
+      "latent_path": "latents/0043.pt",
+      "fires": 20
+    },
+    {
+      "id": 44,
+      "prompt": "a photo of an oven",
+      "tag": "single_object",
+      "seed": 1044,
+      "latent_path": "latents/0044.pt",
+      "fires": 20
+    },
+    {
+      "id": 45,
+      "prompt": "a photo of an orange",
+      "tag": "single_object",
+      "seed": 1045,
+      "latent_path": "latents/0045.pt",
+      "fires": 20
+    },
+    {
+      "id": 46,
+      "prompt": "a photo of a person",
+      "tag": "single_object",
+      "seed": 1046,
+      "latent_path": "latents/0046.pt",
+      "fires": 20
+    },
+    {
+      "id": 47,
+      "prompt": "a photo of a teddy bear",
+      "tag": "single_object",
+      "seed": 1047,
+      "latent_path": "latents/0047.pt",
+      "fires": 20
+    },
+    {
+      "id": 48,
+      "prompt": "a photo of a vase",
+      "tag": "single_object",
+      "seed": 1048,
+      "latent_path": "latents/0048.pt",
+      "fires": 20
+    },
+    {
+      "id": 49,
+      "prompt": "a photo of a banana",
+      "tag": "single_object",
+      "seed": 1049,
+      "latent_path": "latents/0049.pt",
+      "fires": 20
+    },
+    {
+      "id": 50,
+      "prompt": "a photo of a toothbrush",
+      "tag": "single_object",
+      "seed": 1050,
+      "latent_path": "latents/0050.pt",
+      "fires": 20
+    },
+    {
+      "id": 51,
+      "prompt": "a photo of a tv remote",
+      "tag": "single_object",
+      "seed": 1051,
+      "latent_path": "latents/0051.pt",
+      "fires": 20
+    },
+    {
+      "id": 52,
+      "prompt": "a photo of a dining table",
+      "tag": "single_object",
+      "seed": 1052,
+      "latent_path": "latents/0052.pt",
+      "fires": 20
+    },
+    {
+      "id": 53,
+      "prompt": "a photo of a stop sign",
+      "tag": "single_object",
+      "seed": 1053,
+      "latent_path": "latents/0053.pt",
+      "fires": 20
+    },
+    {
+      "id": 54,
+      "prompt": "a photo of a sheep",
+      "tag": "single_object",
+      "seed": 1054,
+      "latent_path": "latents/0054.pt",
+      "fires": 20
+    },
+    {
+      "id": 55,
+      "prompt": "a photo of a fire hydrant",
+      "tag": "single_object",
+      "seed": 1055,
+      "latent_path": "latents/0055.pt",
+      "fires": 20
+    },
+    {
+      "id": 56,
+      "prompt": "a photo of an airplane",
+      "tag": "single_object",
+      "seed": 1056,
+      "latent_path": "latents/0056.pt",
+      "fires": 20
+    },
+    {
+      "id": 57,
+      "prompt": "a photo of a giraffe",
+      "tag": "single_object",
+      "seed": 1057,
+      "latent_path": "latents/0057.pt",
+      "fires": 20
+    },
+    {
+      "id": 58,
+      "prompt": "a photo of a horse",
+      "tag": "single_object",
+      "seed": 1058,
+      "latent_path": "latents/0058.pt",
+      "fires": 20
+    },
+    {
+      "id": 59,
+      "prompt": "a photo of a donut",
+      "tag": "single_object",
+      "seed": 1059,
+      "latent_path": "latents/0059.pt",
+      "fires": 20
+    },
+    {
+      "id": 60,
+      "prompt": "a photo of a boat",
+      "tag": "single_object",
+      "seed": 1060,
+      "latent_path": "latents/0060.pt",
+      "fires": 20
+    },
+    {
+      "id": 61,
+      "prompt": "a photo of a baseball glove",
+      "tag": "single_object",
+      "seed": 1061,
+      "latent_path": "latents/0061.pt",
+      "fires": 20
+    },
+    {
+      "id": 62,
+      "prompt": "a photo of a hair drier",
+      "tag": "single_object",
+      "seed": 1062,
+      "latent_path": "latents/0062.pt",
+      "fires": 20
+    },
+    {
+      "id": 63,
+      "prompt": "a photo of a sink",
+      "tag": "single_object",
+      "seed": 1063,
+      "latent_path": "latents/0063.pt",
+      "fires": 20
+    },
+    {
+      "id": 64,
+      "prompt": "a photo of a cake",
+      "tag": "single_object",
+      "seed": 1064,
+      "latent_path": "latents/0064.pt",
+      "fires": 20
+    },
+    {
+      "id": 65,
+      "prompt": "a photo of an apple",
+      "tag": "single_object",
+      "seed": 1065,
+      "latent_path": "latents/0065.pt",
+      "fires": 20
+    },
+    {
+      "id": 66,
+      "prompt": "a photo of a bus",
+      "tag": "single_object",
+      "seed": 1066,
+      "latent_path": "latents/0066.pt",
+      "fires": 20
+    },
+    {
+      "id": 67,
+      "prompt": "a photo of a tennis racket",
+      "tag": "single_object",
+      "seed": 1067,
+      "latent_path": "latents/0067.pt",
+      "fires": 20
+    },
+    {
+      "id": 68,
+      "prompt": "a photo of a knife",
+      "tag": "single_object",
+      "seed": 1068,
+      "latent_path": "latents/0068.pt",
+      "fires": 20
+    },
+    {
+      "id": 69,
+      "prompt": "a photo of a hot dog",
+      "tag": "single_object",
+      "seed": 1069,
+      "latent_path": "latents/0069.pt",
+      "fires": 20
+    },
+    {
+      "id": 70,
+      "prompt": "a photo of a truck",
+      "tag": "single_object",
+      "seed": 1070,
+      "latent_path": "latents/0070.pt",
+      "fires": 20
+    },
+    {
+      "id": 71,
+      "prompt": "a photo of an umbrella",
+      "tag": "single_object",
+      "seed": 1071,
+      "latent_path": "latents/0071.pt",
+      "fires": 20
+    },
+    {
+      "id": 72,
+      "prompt": "a photo of a sports ball",
+      "tag": "single_object",
+      "seed": 1072,
+      "latent_path": "latents/0072.pt",
+      "fires": 20
+    },
+    {
+      "id": 73,
+      "prompt": "a photo of a bear",
+      "tag": "single_object",
+      "seed": 1073,
+      "latent_path": "latents/0073.pt",
+      "fires": 20
+    },
+    {
+      "id": 74,
+      "prompt": "a photo of a kite",
+      "tag": "single_object",
+      "seed": 1074,
+      "latent_path": "latents/0074.pt",
+      "fires": 20
+    },
+    {
+      "id": 75,
+      "prompt": "a photo of a bench and a sports ball",
+      "tag": "two_object",
+      "seed": 1075,
+      "latent_path": "latents/0075.pt",
+      "fires": 20
+    },
+    {
+      "id": 76,
+      "prompt": "a photo of a toothbrush and a snowboard",
+      "tag": "two_object",
+      "seed": 1076,
+      "latent_path": "latents/0076.pt",
+      "fires": 20
+    },
+    {
+      "id": 77,
+      "prompt": "a photo of a toaster and an oven",
+      "tag": "two_object",
+      "seed": 1077,
+      "latent_path": "latents/0077.pt",
+      "fires": 20
+    },
+    {
+      "id": 78,
+      "prompt": "a photo of a broccoli and a vase",
+      "tag": "two_object",
+      "seed": 1078,
+      "latent_path": "latents/0078.pt",
+      "fires": 20
+    },
+    {
+      "id": 79,
+      "prompt": "a photo of a tennis racket and a wine glass",
+      "tag": "two_object",
+      "seed": 1079,
+      "latent_path": "latents/0079.pt",
+      "fires": 20
+    },
+    {
+      "id": 80,
+      "prompt": "a photo of a fork and a knife",
+      "tag": "two_object",
+      "seed": 1080,
+      "latent_path": "latents/0080.pt",
+      "fires": 20
+    },
+    {
+      "id": 81,
+      "prompt": "a photo of a hair drier and a cake",
+      "tag": "two_object",
+      "seed": 1081,
+      "latent_path": "latents/0081.pt",
+      "fires": 20
+    },
+    {
+      "id": 82,
+      "prompt": "a photo of a horse and a giraffe",
+      "tag": "two_object",
+      "seed": 1082,
+      "latent_path": "latents/0082.pt",
+      "fires": 20
+    },
+    {
+      "id": 83,
+      "prompt": "a photo of a horse and a computer keyboard",
+      "tag": "two_object",
+      "seed": 1083,
+      "latent_path": "latents/0083.pt",
+      "fires": 20
+    },
+    {
+      "id": 84,
+      "prompt": "a photo of a toothbrush and a carrot",
+      "tag": "two_object",
+      "seed": 1084,
+      "latent_path": "latents/0084.pt",
+      "fires": 20
+    },
+    {
+      "id": 85,
+      "prompt": "a photo of a cake and a zebra",
+      "tag": "two_object",
+      "seed": 1085,
+      "latent_path": "latents/0085.pt",
+      "fires": 20
+    },
+    {
+      "id": 86,
+      "prompt": "a photo of a hair drier and a bear",
+      "tag": "two_object",
+      "seed": 1086,
+      "latent_path": "latents/0086.pt",
+      "fires": 20
+    },
+    {
+      "id": 87,
+      "prompt": "a photo of a knife and a zebra",
+      "tag": "two_object",
+      "seed": 1087,
+      "latent_path": "latents/0087.pt",
+      "fires": 20
+    },
+    {
+      "id": 88,
+      "prompt": "a photo of a couch and a wine glass",
+      "tag": "two_object",
+      "seed": 1088,
+      "latent_path": "latents/0088.pt",
+      "fires": 20
+    },
+    {
+      "id": 89,
+      "prompt": "a photo of a frisbee and a vase",
+      "tag": "two_object",
+      "seed": 1089,
+      "latent_path": "latents/0089.pt",
+      "fires": 20
+    },
+    {
+      "id": 90,
+      "prompt": "a photo of a book and a laptop",
+      "tag": "two_object",
+      "seed": 1090,
+      "latent_path": "latents/0090.pt",
+      "fires": 20
+    },
+    {
+      "id": 91,
+      "prompt": "a photo of a dining table and a bear",
+      "tag": "two_object",
+      "seed": 1091,
+      "latent_path": "latents/0091.pt",
+      "fires": 20
+    },
+    {
+      "id": 92,
+      "prompt": "a photo of a frisbee and a couch",
+      "tag": "two_object",
+      "seed": 1092,
+      "latent_path": "latents/0092.pt",
+      "fires": 20
+    },
+    {
+      "id": 93,
+      "prompt": "a photo of a couch and a horse",
+      "tag": "two_object",
+      "seed": 1093,
+      "latent_path": "latents/0093.pt",
+      "fires": 20
+    },
+    {
+      "id": 94,
+      "prompt": "a photo of a toilet and a computer mouse",
+      "tag": "two_object",
+      "seed": 1094,
+      "latent_path": "latents/0094.pt",
+      "fires": 20
+    },
+    {
+      "id": 95,
+      "prompt": "a photo of a bottle and a refrigerator",
+      "tag": "two_object",
+      "seed": 1095,
+      "latent_path": "latents/0095.pt",
+      "fires": 20
+    },
+    {
+      "id": 96,
+      "prompt": "a photo of a potted plant and a backpack",
+      "tag": "two_object",
+      "seed": 1096,
+      "latent_path": "latents/0096.pt",
+      "fires": 20
+    },
+    {
+      "id": 97,
+      "prompt": "a photo of a skateboard and a cake",
+      "tag": "two_object",
+      "seed": 1097,
+      "latent_path": "latents/0097.pt",
+      "fires": 20
+    },
+    {
+      "id": 98,
+      "prompt": "a photo of a broccoli and a parking meter",
+      "tag": "two_object",
+      "seed": 1098,
+      "latent_path": "latents/0098.pt",
+      "fires": 20
+    },
+    {
+      "id": 99,
+      "prompt": "a photo of a zebra and a bed",
+      "tag": "two_object",
+      "seed": 1099,
+      "latent_path": "latents/0099.pt",
+      "fires": 20
+    },
+    {
+      "id": 100,
+      "prompt": "a photo of an oven and a bed",
+      "tag": "two_object",
+      "seed": 1100,
+      "latent_path": "latents/0100.pt",
+      "fires": 20
+    },
+    {
+      "id": 101,
+      "prompt": "a photo of a baseball bat and a fork",
+      "tag": "two_object",
+      "seed": 1101,
+      "latent_path": "latents/0101.pt",
+      "fires": 20
+    },
+    {
+      "id": 102,
+      "prompt": "a photo of a vase and a spoon",
+      "tag": "two_object",
+      "seed": 1102,
+      "latent_path": "latents/0102.pt",
+      "fires": 20
+    },
+    {
+      "id": 103,
+      "prompt": "a photo of a skateboard and a sink",
+      "tag": "two_object",
+      "seed": 1103,
+      "latent_path": "latents/0103.pt",
+      "fires": 20
+    },
+    {
+      "id": 104,
+      "prompt": "a photo of a pizza and a bench",
+      "tag": "two_object",
+      "seed": 1104,
+      "latent_path": "latents/0104.pt",
+      "fires": 20
+    },
+    {
+      "id": 105,
+      "prompt": "a photo of a bowl and a pizza",
+      "tag": "two_object",
+      "seed": 1105,
+      "latent_path": "latents/0105.pt",
+      "fires": 20
+    },
+    {
+      "id": 106,
+      "prompt": "a photo of a tennis racket and a bird",
+      "tag": "two_object",
+      "seed": 1106,
+      "latent_path": "latents/0106.pt",
+      "fires": 20
+    },
+    {
+      "id": 107,
+      "prompt": "a photo of a wine glass and a bear",
+      "tag": "two_object",
+      "seed": 1107,
+      "latent_path": "latents/0107.pt",
+      "fires": 20
+    },
+    {
+      "id": 108,
+      "prompt": "a photo of a fork and a book",
+      "tag": "two_object",
+      "seed": 1108,
+      "latent_path": "latents/0108.pt",
+      "fires": 20
+    },
+    {
+      "id": 109,
+      "prompt": "a photo of a scissors and a bowl",
+      "tag": "two_object",
+      "seed": 1109,
+      "latent_path": "latents/0109.pt",
+      "fires": 20
+    },
+    {
+      "id": 110,
+      "prompt": "a photo of a laptop and a carrot",
+      "tag": "two_object",
+      "seed": 1110,
+      "latent_path": "latents/0110.pt",
+      "fires": 20
+    },
+    {
+      "id": 111,
+      "prompt": "a photo of a stop sign and a bottle",
+      "tag": "two_object",
+      "seed": 1111,
+      "latent_path": "latents/0111.pt",
+      "fires": 20
+    },
+    {
+      "id": 112,
+      "prompt": "a photo of a microwave and a truck",
+      "tag": "two_object",
+      "seed": 1112,
+      "latent_path": "latents/0112.pt",
+      "fires": 20
+    },
+    {
+      "id": 113,
+      "prompt": "a photo of a person and a bear",
+      "tag": "two_object",
+      "seed": 1113,
+      "latent_path": "latents/0113.pt",
+      "fires": 20
+    },
+    {
+      "id": 114,
+      "prompt": "a photo of a frisbee and a cell phone",
+      "tag": "two_object",
+      "seed": 1114,
+      "latent_path": "latents/0114.pt",
+      "fires": 20
+    },
+    {
+      "id": 115,
+      "prompt": "a photo of a parking meter and a teddy bear",
+      "tag": "two_object",
+      "seed": 1115,
+      "latent_path": "latents/0115.pt",
+      "fires": 20
+    },
+    {
+      "id": 116,
+      "prompt": "a photo of a tennis racket and a bicycle",
+      "tag": "two_object",
+      "seed": 1116,
+      "latent_path": "latents/0116.pt",
+      "fires": 20
+    },
+    {
+      "id": 117,
+      "prompt": "a photo of a stop sign and a motorcycle",
+      "tag": "two_object",
+      "seed": 1117,
+      "latent_path": "latents/0117.pt",
+      "fires": 20
+    },
+    {
+      "id": 118,
+      "prompt": "a photo of a fire hydrant and a tennis racket",
+      "tag": "two_object",
+      "seed": 1118,
+      "latent_path": "latents/0118.pt",
+      "fires": 20
+    },
+    {
+      "id": 119,
+      "prompt": "a photo of a scissors and a sandwich",
+      "tag": "two_object",
+      "seed": 1119,
+      "latent_path": "latents/0119.pt",
+      "fires": 20
+    },
+    {
+      "id": 120,
+      "prompt": "a photo of a pizza and a book",
+      "tag": "two_object",
+      "seed": 1120,
+      "latent_path": "latents/0120.pt",
+      "fires": 20
+    },
+    {
+      "id": 121,
+      "prompt": "a photo of a giraffe and a computer mouse",
+      "tag": "two_object",
+      "seed": 1121,
+      "latent_path": "latents/0121.pt",
+      "fires": 20
+    },
+    {
+      "id": 122,
+      "prompt": "a photo of a stop sign and a toaster",
+      "tag": "two_object",
+      "seed": 1122,
+      "latent_path": "latents/0122.pt",
+      "fires": 20
+    },
+    {
+      "id": 123,
+      "prompt": "a photo of a computer mouse and a zebra",
+      "tag": "two_object",
+      "seed": 1123,
+      "latent_path": "latents/0123.pt",
+      "fires": 20
+    },
+    {
+      "id": 124,
+      "prompt": "a photo of a chair and a bench",
+      "tag": "two_object",
+      "seed": 1124,
+      "latent_path": "latents/0124.pt",
+      "fires": 20
+    },
+    {
+      "id": 125,
+      "prompt": "a photo of a tv and a carrot",
+      "tag": "two_object",
+      "seed": 1125,
+      "latent_path": "latents/0125.pt",
+      "fires": 20
+    },
+    {
+      "id": 126,
+      "prompt": "a photo of a surfboard and a suitcase",
+      "tag": "two_object",
+      "seed": 1126,
+      "latent_path": "latents/0126.pt",
+      "fires": 20
+    },
+    {
+      "id": 127,
+      "prompt": "a photo of a computer keyboard and a laptop",
+      "tag": "two_object",
+      "seed": 1127,
+      "latent_path": "latents/0127.pt",
+      "fires": 20
+    },
+    {
+      "id": 128,
+      "prompt": "a photo of a computer keyboard and a microwave",
+      "tag": "two_object",
+      "seed": 1128,
+      "latent_path": "latents/0128.pt",
+      "fires": 20
+    },
+    {
+      "id": 129,
+      "prompt": "a photo of a scissors and a bird",
+      "tag": "two_object",
+      "seed": 1129,
+      "latent_path": "latents/0129.pt",
+      "fires": 20
+    },
+    {
+      "id": 130,
+      "prompt": "a photo of a person and a snowboard",
+      "tag": "two_object",
+      "seed": 1130,
+      "latent_path": "latents/0130.pt",
+      "fires": 20
+    },
+    {
+      "id": 131,
+      "prompt": "a photo of a cow and a horse",
+      "tag": "two_object",
+      "seed": 1131,
+      "latent_path": "latents/0131.pt",
+      "fires": 20
+    },
+    {
+      "id": 132,
+      "prompt": "a photo of a handbag and a refrigerator",
+      "tag": "two_object",
+      "seed": 1132,
+      "latent_path": "latents/0132.pt",
+      "fires": 20
+    },
+    {
+      "id": 133,
+      "prompt": "a photo of a chair and a laptop",
+      "tag": "two_object",
+      "seed": 1133,
+      "latent_path": "latents/0133.pt",
+      "fires": 20
+    },
+    {
+      "id": 134,
+      "prompt": "a photo of a toothbrush and a bench",
+      "tag": "two_object",
+      "seed": 1134,
+      "latent_path": "latents/0134.pt",
+      "fires": 20
+    },
+    {
+      "id": 135,
+      "prompt": "a photo of a book and a baseball bat",
+      "tag": "two_object",
+      "seed": 1135,
+      "latent_path": "latents/0135.pt",
+      "fires": 20
+    },
+    {
+      "id": 136,
+      "prompt": "a photo of a horse and a train",
+      "tag": "two_object",
+      "seed": 1136,
+      "latent_path": "latents/0136.pt",
+      "fires": 20
+    },
+    {
+      "id": 137,
+      "prompt": "a photo of a bench and a vase",
+      "tag": "two_object",
+      "seed": 1137,
+      "latent_path": "latents/0137.pt",
+      "fires": 20
+    },
+    {
+      "id": 138,
+      "prompt": "a photo of a traffic light and a backpack",
+      "tag": "two_object",
+      "seed": 1138,
+      "latent_path": "latents/0138.pt",
+      "fires": 20
+    },
+    {
+      "id": 139,
+      "prompt": "a photo of a sports ball and a cow",
+      "tag": "two_object",
+      "seed": 1139,
+      "latent_path": "latents/0139.pt",
+      "fires": 20
+    },
+    {
+      "id": 140,
+      "prompt": "a photo of a computer mouse and a spoon",
+      "tag": "two_object",
+      "seed": 1140,
+      "latent_path": "latents/0140.pt",
+      "fires": 20
+    },
+    {
+      "id": 141,
+      "prompt": "a photo of a tv and a bicycle",
+      "tag": "two_object",
+      "seed": 1141,
+      "latent_path": "latents/0141.pt",
+      "fires": 20
+    },
+    {
+      "id": 142,
+      "prompt": "a photo of a bench and a snowboard",
+      "tag": "two_object",
+      "seed": 1142,
+      "latent_path": "latents/0142.pt",
+      "fires": 20
+    },
+    {
+      "id": 143,
+      "prompt": "a photo of a toothbrush and a toilet",
+      "tag": "two_object",
+      "seed": 1143,
+      "latent_path": "latents/0143.pt",
+      "fires": 20
+    },
+    {
+      "id": 144,
+      "prompt": "a photo of a person and an apple",
+      "tag": "two_object",
+      "seed": 1144,
+      "latent_path": "latents/0144.pt",
+      "fires": 20
+    },
+    {
+      "id": 145,
+      "prompt": "a photo of a sink and a sports ball",
+      "tag": "two_object",
+      "seed": 1145,
+      "latent_path": "latents/0145.pt",
+      "fires": 20
+    },
+    {
+      "id": 146,
+      "prompt": "a photo of a stop sign and a dog",
+      "tag": "two_object",
+      "seed": 1146,
+      "latent_path": "latents/0146.pt",
+      "fires": 20
+    },
+    {
+      "id": 147,
+      "prompt": "a photo of a knife and a stop sign",
+      "tag": "two_object",
+      "seed": 1147,
+      "latent_path": "latents/0147.pt",
+      "fires": 20
+    },
+    {
+      "id": 148,
+      "prompt": "a photo of a wine glass and a handbag",
+      "tag": "two_object",
+      "seed": 1148,
+      "latent_path": "latents/0148.pt",
+      "fires": 20
+    },
+    {
+      "id": 149,
+      "prompt": "a photo of a bowl and a skis",
+      "tag": "two_object",
+      "seed": 1149,
+      "latent_path": "latents/0149.pt",
+      "fires": 20
+    },
+    {
+      "id": 150,
+      "prompt": "a photo of a frisbee and an apple",
+      "tag": "two_object",
+      "seed": 1150,
+      "latent_path": "latents/0150.pt",
+      "fires": 20
+    },
+    {
+      "id": 151,
+      "prompt": "a photo of a computer keyboard and a cell phone",
+      "tag": "two_object",
+      "seed": 1151,
+      "latent_path": "latents/0151.pt",
+      "fires": 20
+    },
+    {
+      "id": 152,
+      "prompt": "a photo of a stop sign and a fork",
+      "tag": "two_object",
+      "seed": 1152,
+      "latent_path": "latents/0152.pt",
+      "fires": 20
+    },
+    {
+      "id": 153,
+      "prompt": "a photo of a potted plant and a boat",
+      "tag": "two_object",
+      "seed": 1153,
+      "latent_path": "latents/0153.pt",
+      "fires": 20
+    },
+    {
+      "id": 154,
+      "prompt": "a photo of a tv and a cell phone",
+      "tag": "two_object",
+      "seed": 1154,
+      "latent_path": "latents/0154.pt",
+      "fires": 20
+    },
+    {
+      "id": 155,
+      "prompt": "a photo of a tie and a broccoli",
+      "tag": "two_object",
+      "seed": 1155,
+      "latent_path": "latents/0155.pt",
+      "fires": 20
+    },
+    {
+      "id": 156,
+      "prompt": "a photo of a potted plant and a donut",
+      "tag": "two_object",
+      "seed": 1156,
+      "latent_path": "latents/0156.pt",
+      "fires": 20
+    },
+    {
+      "id": 157,
+      "prompt": "a photo of a person and a sink",
+      "tag": "two_object",
+      "seed": 1157,
+      "latent_path": "latents/0157.pt",
+      "fires": 20
+    },
+    {
+      "id": 158,
+      "prompt": "a photo of a couch and a snowboard",
+      "tag": "two_object",
+      "seed": 1158,
+      "latent_path": "latents/0158.pt",
+      "fires": 20
+    },
+    {
+      "id": 159,
+      "prompt": "a photo of a fork and a baseball glove",
+      "tag": "two_object",
+      "seed": 1159,
+      "latent_path": "latents/0159.pt",
+      "fires": 20
+    },
+    {
+      "id": 160,
+      "prompt": "a photo of an apple and a toothbrush",
+      "tag": "two_object",
+      "seed": 1160,
+      "latent_path": "latents/0160.pt",
+      "fires": 20
+    },
+    {
+      "id": 161,
+      "prompt": "a photo of a bus and a baseball glove",
+      "tag": "two_object",
+      "seed": 1161,
+      "latent_path": "latents/0161.pt",
+      "fires": 20
+    },
+    {
+      "id": 162,
+      "prompt": "a photo of a person and a stop sign",
+      "tag": "two_object",
+      "seed": 1162,
+      "latent_path": "latents/0162.pt",
+      "fires": 20
+    },
+    {
+      "id": 163,
+      "prompt": "a photo of a carrot and a couch",
+      "tag": "two_object",
+      "seed": 1163,
+      "latent_path": "latents/0163.pt",
+      "fires": 20
+    },
+    {
+      "id": 164,
+      "prompt": "a photo of a baseball bat and a bear",
+      "tag": "two_object",
+      "seed": 1164,
+      "latent_path": "latents/0164.pt",
+      "fires": 20
+    },
+    {
+      "id": 165,
+      "prompt": "a photo of a fire hydrant and a train",
+      "tag": "two_object",
+      "seed": 1165,
+      "latent_path": "latents/0165.pt",
+      "fires": 20
+    },
+    {
+      "id": 166,
+      "prompt": "a photo of a baseball glove and a carrot",
+      "tag": "two_object",
+      "seed": 1166,
+      "latent_path": "latents/0166.pt",
+      "fires": 20
+    },
+    {
+      "id": 167,
+      "prompt": "a photo of a microwave and a bench",
+      "tag": "two_object",
+      "seed": 1167,
+      "latent_path": "latents/0167.pt",
+      "fires": 20
+    },
+    {
+      "id": 168,
+      "prompt": "a photo of a cake and a stop sign",
+      "tag": "two_object",
+      "seed": 1168,
+      "latent_path": "latents/0168.pt",
+      "fires": 20
+    },
+    {
+      "id": 169,
+      "prompt": "a photo of a car and a computer mouse",
+      "tag": "two_object",
+      "seed": 1169,
+      "latent_path": "latents/0169.pt",
+      "fires": 20
+    },
+    {
+      "id": 170,
+      "prompt": "a photo of a suitcase and a dining table",
+      "tag": "two_object",
+      "seed": 1170,
+      "latent_path": "latents/0170.pt",
+      "fires": 20
+    },
+    {
+      "id": 171,
+      "prompt": "a photo of a person and a traffic light",
+      "tag": "two_object",
+      "seed": 1171,
+      "latent_path": "latents/0171.pt",
+      "fires": 20
+    },
+    {
+      "id": 172,
+      "prompt": "a photo of a cell phone and a horse",
+      "tag": "two_object",
+      "seed": 1172,
+      "latent_path": "latents/0172.pt",
+      "fires": 20
+    },
+    {
+      "id": 173,
+      "prompt": "a photo of a baseball bat and a giraffe",
+      "tag": "two_object",
+      "seed": 1173,
+      "latent_path": "latents/0173.pt",
+      "fires": 20
+    },
+    {
+      "id": 174,
+      "prompt": "a photo of two clocks",
+      "tag": "counting",
+      "seed": 1174,
+      "latent_path": "latents/0174.pt",
+      "fires": 20
+    },
+    {
+      "id": 175,
+      "prompt": "a photo of two backpacks",
+      "tag": "counting",
+      "seed": 1175,
+      "latent_path": "latents/0175.pt",
+      "fires": 20
+    },
+    {
+      "id": 176,
+      "prompt": "a photo of four handbags",
+      "tag": "counting",
+      "seed": 1176,
+      "latent_path": "latents/0176.pt",
+      "fires": 20
+    },
+    {
+      "id": 177,
+      "prompt": "a photo of two frisbees",
+      "tag": "counting",
+      "seed": 1177,
+      "latent_path": "latents/0177.pt",
+      "fires": 20
+    },
+    {
+      "id": 178,
+      "prompt": "a photo of three sports balls",
+      "tag": "counting",
+      "seed": 1178,
+      "latent_path": "latents/0178.pt",
+      "fires": 20
+    },
+    {
+      "id": 179,
+      "prompt": "a photo of two bears",
+      "tag": "counting",
+      "seed": 1179,
+      "latent_path": "latents/0179.pt",
+      "fires": 20
+    },
+    {
+      "id": 180,
+      "prompt": "a photo of two ties",
+      "tag": "counting",
+      "seed": 1180,
+      "latent_path": "latents/0180.pt",
+      "fires": 20
+    },
+    {
+      "id": 181,
+      "prompt": "a photo of four sinks",
+      "tag": "counting",
+      "seed": 1181,
+      "latent_path": "latents/0181.pt",
+      "fires": 20
+    },
+    {
+      "id": 182,
+      "prompt": "a photo of two toothbrushs",
+      "tag": "counting",
+      "seed": 1182,
+      "latent_path": "latents/0182.pt",
+      "fires": 20
+    },
+    {
+      "id": 183,
+      "prompt": "a photo of three persons",
+      "tag": "counting",
+      "seed": 1183,
+      "latent_path": "latents/0183.pt",
+      "fires": 20
+    },
+    {
+      "id": 184,
+      "prompt": "a photo of three tennis rackets",
+      "tag": "counting",
+      "seed": 1184,
+      "latent_path": "latents/0184.pt",
+      "fires": 20
+    },
+    {
+      "id": 185,
+      "prompt": "a photo of four bowls",
+      "tag": "counting",
+      "seed": 1185,
+      "latent_path": "latents/0185.pt",
+      "fires": 20
+    },
+    {
+      "id": 186,
+      "prompt": "a photo of four vases",
+      "tag": "counting",
+      "seed": 1186,
+      "latent_path": "latents/0186.pt",
+      "fires": 20
+    },
+    {
+      "id": 187,
+      "prompt": "a photo of three cups",
+      "tag": "counting",
+      "seed": 1187,
+      "latent_path": "latents/0187.pt",
+      "fires": 20
+    },
+    {
+      "id": 188,
+      "prompt": "a photo of four computer keyboards",
+      "tag": "counting",
+      "seed": 1188,
+      "latent_path": "latents/0188.pt",
+      "fires": 20
+    },
+    {
+      "id": 189,
+      "prompt": "a photo of three sinks",
+      "tag": "counting",
+      "seed": 1189,
+      "latent_path": "latents/0189.pt",
+      "fires": 20
+    },
+    {
+      "id": 190,
+      "prompt": "a photo of two ovens",
+      "tag": "counting",
+      "seed": 1190,
+      "latent_path": "latents/0190.pt",
+      "fires": 20
+    },
+    {
+      "id": 191,
+      "prompt": "a photo of two toilets",
+      "tag": "counting",
+      "seed": 1191,
+      "latent_path": "latents/0191.pt",
+      "fires": 20
+    },
+    {
+      "id": 192,
+      "prompt": "a photo of two bicycles",
+      "tag": "counting",
+      "seed": 1192,
+      "latent_path": "latents/0192.pt",
+      "fires": 20
+    },
+    {
+      "id": 193,
+      "prompt": "a photo of two trains",
+      "tag": "counting",
+      "seed": 1193,
+      "latent_path": "latents/0193.pt",
+      "fires": 20
+    },
+    {
+      "id": 194,
+      "prompt": "a photo of three oranges",
+      "tag": "counting",
+      "seed": 1194,
+      "latent_path": "latents/0194.pt",
+      "fires": 20
+    },
+    {
+      "id": 195,
+      "prompt": "a photo of three buses",
+      "tag": "counting",
+      "seed": 1195,
+      "latent_path": "latents/0195.pt",
+      "fires": 20
+    },
+    {
+      "id": 196,
+      "prompt": "a photo of three handbags",
+      "tag": "counting",
+      "seed": 1196,
+      "latent_path": "latents/0196.pt",
+      "fires": 20
+    },
+    {
+      "id": 197,
+      "prompt": "a photo of three snowboards",
+      "tag": "counting",
+      "seed": 1197,
+      "latent_path": "latents/0197.pt",
+      "fires": 20
+    },
+    {
+      "id": 198,
+      "prompt": "a photo of two snowboards",
+      "tag": "counting",
+      "seed": 1198,
+      "latent_path": "latents/0198.pt",
+      "fires": 20
+    },
+    {
+      "id": 199,
+      "prompt": "a photo of four dogs",
+      "tag": "counting",
+      "seed": 1199,
+      "latent_path": "latents/0199.pt",
+      "fires": 20
+    }
+  ],
+  "wall_s": 2184.8064210414886
+}

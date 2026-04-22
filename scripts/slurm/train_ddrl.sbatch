@@ -1,10 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=ddrl_train
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:4
+#SBATCH --partition=a10
+#SBATCH --account=bera89-k
+#SBATCH --gres=gpu:3
 #SBATCH --nodes=1
 #SBATCH --time=48:00:00
-#SBATCH --mem=256G
+#SBATCH --mem=120G
 #SBATCH --cpus-per-task=32
 #SBATCH --output=logs/ddrl_train_%j.out
 #SBATCH --error=logs/ddrl_train_%j.err
@@ -24,33 +25,26 @@ echo "Node: $SLURMD_NODENAME"
 echo "Time: $(date)"
 echo "=============================================="
 
-# Load modules
-module load cuda/11.8 2>/dev/null || true
-module load anaconda 2>/dev/null || true
+export RCAC_SCRATCH=${RCAC_SCRATCH:-/scratch/gilbreth/${USER}}
+export CONDA_ENVS_PATH="$RCAC_SCRATCH/conda/envs"
+export CONDA_PKGS_DIRS="$RCAC_SCRATCH/conda/pkgs"
+export PIP_CACHE_DIR="$RCAC_SCRATCH/pip/cache"
+export HF_HOME="$RCAC_SCRATCH/.cache/huggingface"
+export WANDB_PROJECT=tfg-rl-baselines
+export WANDB_RUN_NAME=ddrl_training
+export WANDB_DIR=$PROJECT_ROOT/logs
 
-eval "$(conda shell.bash hook)"
+source /apps/external/conda/2025.09/etc/profile.d/conda.sh
 conda activate flowgrpo
 
 echo "GPU Info:"
 nvidia-smi
 
-# Initialize W&B
-export WANDB_PROJECT=tfg-rl-baselines
-export WANDB_RUN_NAME=ddrl_training
-export WANDB_DIR=$PROJECT_ROOT/logs
-
 echo ""
 echo "Starting DDRL training..."
-echo "Using $(nvidia-smi -L | wc -l) GPUs"
-
-# Run DDRL training
-# Note: train_ddrl.py implements the forward KL + reward maximization algorithm
-# from the DDRL paper (repo not yet released; adapted from paper description).
 python scripts/train_ddrl.py \
     --config configs/base_config.yaml \
     --output_dir outputs/checkpoints/ddrl
-
-cd "$PROJECT_ROOT"
 
 echo ""
 echo "DDRL training completed at $(date)"

@@ -95,6 +95,8 @@ if [ -n "$RCAC_SCRATCH" ]; then
     # CONDA_PKGS_DIRS, which Gilbreth sets to ~/. conda/pkgs by default.
     export CONDA_PKGS_DIRS="$RCAC_SCRATCH/conda/pkgs"
     export CONDA_ENVS_PATH="$RCAC_SCRATCH/conda/envs"
+    export PIP_CACHE_DIR="$RCAC_SCRATCH/pip/cache"
+    mkdir -p "$PIP_CACHE_DIR"
 
     # Also write to .condarc so conda run / sbatch jobs inherit the setting
     conda config --add envs_dirs "$RCAC_SCRATCH/conda/envs" 2>/dev/null || true

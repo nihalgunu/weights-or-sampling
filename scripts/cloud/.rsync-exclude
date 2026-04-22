@@ -1,0 +1,12 @@
+.git/
+outputs/
+logs/
+repos/
+__pycache__/
+*.pyc
+.DS_Store
+.lambda_instance
+.claude/
+.venv/
+venv/
+node_modules/

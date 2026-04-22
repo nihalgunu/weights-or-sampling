@@ -1,10 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=flowgrpo_train
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:4
+#SBATCH --partition=a10
+#SBATCH --account=bera89-k
+#SBATCH --gres=gpu:3
 #SBATCH --nodes=1
 #SBATCH --time=48:00:00
-#SBATCH --mem=256G
+#SBATCH --mem=120G
 #SBATCH --cpus-per-task=32
 #SBATCH --output=logs/flowgrpo_train_%j.out
 #SBATCH --error=logs/flowgrpo_train_%j.err
@@ -23,31 +24,27 @@ echo "Node: $SLURMD_NODENAME"
 echo "Time: $(date)"
 echo "=============================================="
 
-# Load modules
-module load cuda/11.8 2>/dev/null || true
-module load anaconda 2>/dev/null || true
+export RCAC_SCRATCH=${RCAC_SCRATCH:-/scratch/gilbreth/${USER}}
+export CONDA_ENVS_PATH="$RCAC_SCRATCH/conda/envs"
+export CONDA_PKGS_DIRS="$RCAC_SCRATCH/conda/pkgs"
+export PIP_CACHE_DIR="$RCAC_SCRATCH/pip/cache"
+export HF_HOME="$RCAC_SCRATCH/.cache/huggingface"
+export WANDB_PROJECT=tfg-rl-baselines
+export WANDB_RUN_NAME=flowgrpo_training
+export WANDB_DIR=$PROJECT_ROOT/logs
 
-eval "$(conda shell.bash hook)"
+# Distributed training env vars
+export MASTER_ADDR=$(hostname)
+export MASTER_PORT=29500
+
+source /apps/external/conda/2025.09/etc/profile.d/conda.sh
 conda activate flowgrpo
 
 echo "GPU Info:"
 nvidia-smi
 
-# Set environment variables for distributed training
-export MASTER_ADDR=$(hostname)
-export MASTER_PORT=29500
-export WORLD_SIZE=$SLURM_NTASKS
-export LOCAL_RANK=$SLURM_LOCALID
-export RANK=$SLURM_PROCID
-
-# Initialize W&B
-export WANDB_PROJECT=tfg-rl-baselines
-export WANDB_RUN_NAME=flowgrpo_training
-export WANDB_DIR=$PROJECT_ROOT/logs
-
 echo ""
 echo "Starting FlowGRPO training..."
-echo "Using $(nvidia-smi -L | wc -l) GPUs"
 
 cd repos/flow_grpo
 
@@ -71,9 +68,6 @@ accelerate launch --num_processes=1 --mixed_precision=bf16 \
     --logging_steps 10 \
     --report_to wandb \
     --bf16
-
-# If the above command doesn't work, try their provided script:
-# bash scripts/single_node/grpo.sh
 
 cd "$PROJECT_ROOT"
 
