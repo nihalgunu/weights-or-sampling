@@ -11,6 +11,7 @@ log() { echo "[$(date +%H:%M:%S)] $*"; }
 HF_TOKEN="${HF_TOKEN:?}"
 WANDB_API_KEY="${WANDB_API_KEY:?}"
 REPO_URL="${REPO_URL:-https://github.com/nihalgunu/haotian_research.git}"
+REPO_BRANCH="${REPO_BRANCH:-main}"
 RUN_SCRIPT="${RUN_SCRIPT:-scripts/cloud/run_flowgrpo.sh}"
 
 INSTALL_DIR="$HOME"
@@ -43,7 +44,7 @@ echo "export PATH='$CONDA_DIR/bin:\$PATH'" >> ~/.bashrc
 log "=== Cloning repo ==="
 REPO_DIR="$HOME/haotian_research"
 if [ ! -d "$REPO_DIR" ]; then
-    git clone "$REPO_URL" "$REPO_DIR"
+    git clone --branch "$REPO_BRANCH" "$REPO_URL" "$REPO_DIR"
 fi
 cd "$REPO_DIR"
 log "  Repo at $REPO_DIR ($(git rev-parse --short HEAD))"

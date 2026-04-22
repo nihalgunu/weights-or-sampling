@@ -124,9 +124,10 @@ $SSH "chmod +x ~/bootstrap.sh"
 
 # ── Step 6: run bootstrap + target script in tmux ────────────────────────────
 log "Starting bootstrap + $RUN_SCRIPT in tmux session '$TMUX_SESSION'..."
+REPO_BRANCH="${REPO_BRANCH:-main}"
 $SSH "tmux new-session -d -s $TMUX_SESSION \
     \"HF_TOKEN='$HF_TOKEN' WANDB_API_KEY='$WANDB_API_KEY' \
-      REPO_URL='$REPO_URL' RUN_SCRIPT='$RUN_SCRIPT' \
+      REPO_URL='$REPO_URL' REPO_BRANCH='$REPO_BRANCH' RUN_SCRIPT='$RUN_SCRIPT' \
       bash ~/bootstrap.sh 2>&1 | tee ~/run.log; \
       echo EXIT_CODE=\$? >> ~/run.log\""
 
