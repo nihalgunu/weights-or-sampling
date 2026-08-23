@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weights or Sampling?</title>
+<style>
+  :root { --ink:#1a1a1a; --muted:#555; --accent:#08306b; --bg:#ffffff; --rule:#e3e3e3; }
+  * { box-sizing:border-box; margin:0; }
+  body { font:17px/1.65 Georgia,'Times New Roman',serif; color:var(--ink); background:var(--bg); }
+  .wrap { max-width:760px; margin:0 auto; padding:56px 20px 80px; }
+  h1 { font-size:2rem; line-height:1.25; text-align:center; }
+  .kicker { text-align:center; font-family:Helvetica,Arial,sans-serif; font-size:.85rem;
+            letter-spacing:.22em; text-transform:uppercase; color:var(--accent);
+            margin:0 0 10px; }
+  .sub { text-align:center; color:var(--muted); margin:10px 0 4px; }
+  .authors { text-align:center; margin:14px 0 6px; font-size:1.05rem; }
+  .links { text-align:center; margin:22px 0 34px; }
+  .links a { display:inline-block; margin:4px 6px; padding:8px 18px; border:1.5px solid var(--accent);
+             border-radius:999px; color:var(--accent); text-decoration:none; font-family:Helvetica,Arial,sans-serif;
+             font-size:.92rem; }
+  .links a:hover { background:var(--accent); color:#fff; }
+  .links a.soon { border-color:#bbb; color:#888; cursor:default; pointer-events:none; }
+  h2 { font-size:1.25rem; margin:38px 0 12px; border-bottom:1px solid var(--rule); padding-bottom:6px; }
+  p { margin:12px 0; }
+  figure { margin:22px 0; text-align:center; }
+  figure img { max-width:100%; border:1px solid var(--rule); border-radius:4px; }
+  figcaption { font-size:.88rem; color:var(--muted); margin-top:8px; text-align:left; }
+  ul { padding-left:22px; } li { margin:7px 0; }
+  pre { background:#f6f6f4; border:1px solid var(--rule); border-radius:6px; padding:14px;
+        overflow-x:auto; font-size:.82rem; line-height:1.5; }
+  .note { font-size:.9rem; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Weights or Sampling?</p>
+  <h1>Weights or Sampling? A Controlled Study of<br>Reward Optimization in Flow-Matching Models</h1>
+  <p class="authors">soon</p>
+  <p class="sub">soon</p>
+  <div class="links">
+    <a class="soon" title="preprint in progress">Paper (PDF) &middot; soon</a>
+    <a href="https://github.com/nihalgunu/weights-or-sampling">Code</a>
+    <a href="https://github.com/nihalgunu/weights-or-sampling">Evaluation data</a>
+    <a href="#bibtex">BibTeX</a>
+  </div>
+
+  <h2>TL;DR</h2>
+  <p><b>To make a flow-matching image model score higher on a reward, the reward can go in
+  two places: trained into the weights with reinforcement learning, or spent at sampling
+  time as guidance. Held to one backbone, one frozen reward model, and one budget, guidance
+  wins on every differentiable reward we test, by 1.6&times; to 7&times; over tuned RL, and
+  the margin is predictable before you train.</b> The result is not a winner but a measured
+  map of conditions, each with a mechanism: guidance consumes the true per-sample reward
+  gradient where it applies, while RL must estimate that gradient from scalar rollouts and
+  amortize it into prompt-independent weights.</p>
+
+  <figure>
+    <img src="assets/fig_hero.png" alt="Headline comparison: training-free guidance versus matched-budget RL across reward settings">
+    <figcaption>Matched-budget comparison on SD3.5-Medium. Training-free guidance improves
+    every one of 150 prompts on each differentiable reward; matched-budget RL trails by
+    1.6&times; (aesthetics) to 7&times; (text rendering), and single RL runs scatter.</figcaption>
+  </figure>
+
+  <h2>Findings</h2>
+  <ul>
+    <li><b>Two cheap measurements predict the margin.</b> The initial slope of the guidance
+        dose-response predicts how far guidance can push a reward; the cross-prompt similarity
+        of the reward gradient predicts how much of that RL can amortize. Together they are a
+        pre-flight diagnostic: you know which side of the map you are on before spending a
+        GPU-hour on training.</li>
+    <li><b>Training wins in two regimes, and only there.</b> When the reward is
+        non-differentiable (guidance cannot run) and when it is fully prompt-independent. On a
+        prompt-independent aesthetic reward, three matched-budget RL seeds average +0.142 and
+        tie matched-strength guidance, the one place training closes the gap.</li>
+    <li><b>The default handicaps RL, and single runs mislead.</b> A KL coefficient shipped
+        upstream quietly halves RL's gains; at the fair setting single runs still swing from
+        harmful to helpful across seeds, and below a rollout-group threshold training actively
+        destroys the policy. The comparison is only fair once these are controlled.</li>
+    <li><b>Guidance composes, with itself and with RL.</b> Its cheaper denoised-estimate
+        branch beats the standard one and the two together double the gain; stacked on a
+        trained checkpoint the families add rather than cancel, and partially rescue a failed
+        run.</li>
+    <li><b>Reward gains convert weakly into task gains, worst for the strongest
+        optimizer.</b> Under external, task-grounded audits (literal OCR readability, a
+        detector protocol, a cross-architecture judge), reward-model improvements dissociate
+        from real task improvements, and the dissociation widens with optimization strength.
+        Past a point the binding constraint is the reward model, not the optimizer.</li>
+  </ul>
+
+  <figure>
+    <img src="assets/fig_crossover.png" alt="RL gain versus training budget, against the training-free guidance bars">
+    <figcaption>Budget crossover on the text-alignment reward. Even at the corrected KL
+    setting and four times the budget, RL approaches but does not cross plain guidance, and
+    stays far below the composed two-branch configuration, which costs no training at all.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="assets/fig_conversion.png" alt="Reward-model gain versus task-grounded readability across guidance strength">
+    <figcaption>The reward-versus-task dissociation on text-rendering prompts. As optimization
+    strengthens, the reward climbs while literal word-F1 falls, crossing zero and declining
+    monotonically: the sharpest evidence that reward fidelity, not optimizer choice, is
+    the ceiling.</figcaption>
+  </figure>
+
+  <h2>Reproduction</h2>
+  <p>Every number in the paper recomputes from released per-prompt, per-seed evaluation
+  matrices under one prompt-clustered recipe, and every run is reproducible from the released
+  scripts: training uses fixed initialization and rollout seeds. Trained checkpoints and full
+  logs are provided where retained.</p>
+
+  <h2 id="bibtex">BibTeX</h2>
+  <pre>Citation will be posted when the preprint is up (in progress).</pre>
+  <p class="note">Figures and numbers are generated from the released evaluation data.</p>
+</div>
+</body>
+</html>
