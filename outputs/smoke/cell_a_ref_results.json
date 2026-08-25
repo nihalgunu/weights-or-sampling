@@ -1,0 +1,245 @@
+{
+  "cell": "A_ref",
+  "provider": "fal-ai",
+  "model": "stabilityai/stable-diffusion-3.5-medium",
+  "items": [
+    {
+      "id": 0,
+      "prompt": "a photo of a cat",
+      "category": "single_object",
+      "image_path": "outputs/smoke/cell_a_ref/000.png",
+      "clip_score": 0.2624637484550476
+    },
+    {
+      "id": 1,
+      "prompt": "a photo of a dog",
+      "category": "single_object",
+      "image_path": "outputs/smoke/cell_a_ref/001.png",
+      "clip_score": 0.25346043705940247
+    },
+    {
+      "id": 2,
+      "prompt": "a photo of a bicycle",
+      "category": "single_object",
+      "image_path": "outputs/smoke/cell_a_ref/002.png",
+      "clip_score": 0.26515692472457886
+    },
+    {
+      "id": 3,
+      "prompt": "a photo of a wine glass",
+      "category": "single_object",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 4,
+      "prompt": "a photo of a clock",
+      "category": "single_object",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 5,
+      "prompt": "a photo of a cat and a dog",
+      "category": "two_objects",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 6,
+      "prompt": "a photo of a bicycle and a bench",
+      "category": "two_objects",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 7,
+      "prompt": "a photo of a laptop and a coffee cup",
+      "category": "two_objects",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 8,
+      "prompt": "a photo of a book and a pen",
+      "category": "two_objects",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 9,
+      "prompt": "a photo of a pizza and a wine glass",
+      "category": "two_objects",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 10,
+      "prompt": "a photo of three apples",
+      "category": "counting",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 11,
+      "prompt": "a photo of two cats",
+      "category": "counting",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 12,
+      "prompt": "a photo of four chairs",
+      "category": "counting",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 13,
+      "prompt": "a photo of five books",
+      "category": "counting",
+      "image_path": "outputs/smoke/cell_a_ref/013.png",
+      "clip_score": 0.23780959844589233
+    },
+    {
+      "id": 14,
+      "prompt": "a photo of two birds",
+      "category": "counting",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 15,
+      "prompt": "a photo of a red apple",
+      "category": "colors",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 16,
+      "prompt": "a photo of a blue car",
+      "category": "colors",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 17,
+      "prompt": "a photo of a green bottle",
+      "category": "colors",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 18,
+      "prompt": "a photo of a yellow banana",
+      "category": "colors",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 19,
+      "prompt": "a photo of a purple flower",
+      "category": "colors",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 20,
+      "prompt": "a photo of a cat above a dog",
+      "category": "position",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 21,
+      "prompt": "a photo of a cup on a table",
+      "category": "position",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 22,
+      "prompt": "a photo of a book to the left of a pen",
+      "category": "position",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 23,
+      "prompt": "a photo of a bottle behind a glass",
+      "category": "position",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 24,
+      "prompt": "a photo of a ball in front of a chair",
+      "category": "position",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 25,
+      "prompt": "a photo of a red cat and a blue dog",
+      "category": "color_attribution",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 26,
+      "prompt": "a photo of a green bottle and a yellow book",
+      "category": "color_attribution",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 27,
+      "prompt": "a photo of a black laptop and a white mug",
+      "category": "color_attribution",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 28,
+      "prompt": "a photo of a purple flower and an orange fruit",
+      "category": "color_attribution",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    },
+    {
+      "id": 29,
+      "prompt": "a photo of a blue bird and a red berry",
+      "category": "color_attribution",
+      "clip_score": null,
+      "image_path": null,
+      "error": "fetch failed"
+    }
+  ],
+  "wall_time_s": 94.64031553268433,
+  "mean_clip_score": 0.2547226771712303
+}

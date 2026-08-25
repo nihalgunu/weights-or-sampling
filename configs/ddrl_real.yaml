@@ -1,0 +1,39 @@
+# Real DDRL config for A100 40GB. Scale vs ddrl_smoke.yaml:
+#   batch 1 → 4, steps 60 → 300, LoRA r=32 → 64, ref model enabled (KL term).
+# Memory budget (estimated with T5 offloaded from both pipes):
+#   policy ~ 6.5 GB  (transformer bf16 + LoRA, minus T5)
+#   ref    ~ 6.5 GB  (same, frozen)
+#   CLIP predictor fp32 ~ 1.7 GB
+#   activations (rollout 20 steps, batch 4, 512²) ~ 4 GB
+#   grad scope on last step ~ 3 GB
+#   optimizer state (LoRA only) ~ 200 MB
+#   headroom / fragmentation ~ 4 GB
+#   total ~ 26 GB on 40 GB A100 — comfortable
+model:
+  name: stabilityai/stable-diffusion-3.5-medium
+  torch_dtype: bfloat16
+generation:
+  num_inference_steps: 20
+  guidance_scale: 4.5
+  height: 512
+  width: 512
+  seed: 42
+ddrl:
+  learning_rate: 1.0e-5
+  num_train_epochs: 50          # upper bound; --max_steps caps at 300
+  gradient_accumulation_steps: 1
+  max_grad_norm: 1.0
+  kl_coef: 0.05                 # reference KL on; moderate regularization
+  reward_weight: 1.0
+  rollout_batch_size: 2         # A100 40GB couldn't fit batch 4 — VAE.decode backward pushed past 38GB.
+  grad_steps: 1                 # DRaFT-lite depth. 2 would be stronger but doubles memory.
+  use_reference_kl: true
+  use_lora: true
+  lora_rank: 64
+  lora_alpha: 128
+  save_steps: 50                # save every 50 steps → 6 checkpoints through the run
+geneval:
+  prompts_file: scripts/cloud/prompts_smoke.json
+logging:
+  wandb:
+    project: tfg-rl-baselines

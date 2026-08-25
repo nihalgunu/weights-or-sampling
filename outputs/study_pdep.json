@@ -1,0 +1,32 @@
+{
+ "clip_geneval": {
+  "mean_pairwise_cos": 0.6436091884970665,
+  "sd_over_images": 0.11819565706268945,
+  "n_prompts": 16,
+  "n_images": 8
+ },
+ "clip_ocr": {
+  "mean_pairwise_cos": 0.4432265218347311,
+  "sd_over_images": 0.17810833779357899,
+  "n_prompts": 16,
+  "n_images": 8
+ },
+ "pickscore_geneval": {
+  "mean_pairwise_cos": 0.5764633975923061,
+  "sd_over_images": 0.23199590821582985,
+  "n_prompts": 16,
+  "n_images": 8
+ },
+ "aesthetic": {
+  "mean_pairwise_cos": 0.999998427927494,
+  "sd_over_images": 8.59002877075348e-07,
+  "n_prompts": 16,
+  "n_images": 8
+ },
+ "ensemble_geneval": {
+  "mean_pairwise_cos": 0.6612633094191551,
+  "sd_over_images": 0.10804648253471981,
+  "n_prompts": 16,
+  "n_images": 8
+ }
+}

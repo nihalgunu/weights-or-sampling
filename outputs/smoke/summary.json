@@ -1,0 +1,249 @@
+{
+  "cell_a_mean_clip": 0.26806011150280634,
+  "cell_b_mean_clip": 0.26808367123206456,
+  "delta_b_minus_a": 2.35597292582157e-05,
+  "cell_a_wall_s": 126.17667007446289,
+  "cell_b_wall_s": 358.6568946838379,
+  "per_prompt_paired": [
+    {
+      "id": 0,
+      "prompt": "a photo of a cat",
+      "category": "single_object",
+      "clip_a": 0.252536803483963,
+      "clip_b": 0.25354689359664917,
+      "delta": 0.0010100901126861572
+    },
+    {
+      "id": 1,
+      "prompt": "a photo of a dog",
+      "category": "single_object",
+      "clip_a": 0.22900399565696716,
+      "clip_b": 0.2293967604637146,
+      "delta": 0.0003927648067474365
+    },
+    {
+      "id": 2,
+      "prompt": "a photo of a bicycle",
+      "category": "single_object",
+      "clip_a": 0.25950291752815247,
+      "clip_b": 0.2584622800350189,
+      "delta": -0.001040637493133545
+    },
+    {
+      "id": 3,
+      "prompt": "a photo of a wine glass",
+      "category": "single_object",
+      "clip_a": 0.27995240688323975,
+      "clip_b": 0.2807811498641968,
+      "delta": 0.0008287429809570312
+    },
+    {
+      "id": 4,
+      "prompt": "a photo of a clock",
+      "category": "single_object",
+      "clip_a": 0.25839895009994507,
+      "clip_b": 0.25983384251594543,
+      "delta": 0.0014348924160003662
+    },
+    {
+      "id": 5,
+      "prompt": "a photo of a cat and a dog",
+      "category": "two_objects",
+      "clip_a": 0.2344721406698227,
+      "clip_b": 0.2372131496667862,
+      "delta": 0.002741008996963501
+    },
+    {
+      "id": 6,
+      "prompt": "a photo of a bicycle and a bench",
+      "category": "two_objects",
+      "clip_a": 0.3040274977684021,
+      "clip_b": 0.30256983637809753,
+      "delta": -0.0014576613903045654
+    },
+    {
+      "id": 7,
+      "prompt": "a photo of a laptop and a coffee cup",
+      "category": "two_objects",
+      "clip_a": 0.25737082958221436,
+      "clip_b": 0.2590579390525818,
+      "delta": 0.0016871094703674316
+    },
+    {
+      "id": 8,
+      "prompt": "a photo of a book and a pen",
+      "category": "two_objects",
+      "clip_a": 0.2585070729255676,
+      "clip_b": 0.25929147005081177,
+      "delta": 0.0007843971252441406
+    },
+    {
+      "id": 9,
+      "prompt": "a photo of a pizza and a wine glass",
+      "category": "two_objects",
+      "clip_a": 0.2552641034126282,
+      "clip_b": 0.25695696473121643,
+      "delta": 0.0016928613185882568
+    },
+    {
+      "id": 10,
+      "prompt": "a photo of three apples",
+      "category": "counting",
+      "clip_a": 0.24857544898986816,
+      "clip_b": 0.24867799878120422,
+      "delta": 0.00010254979133605957
+    },
+    {
+      "id": 11,
+      "prompt": "a photo of two cats",
+      "category": "counting",
+      "clip_a": 0.24684546887874603,
+      "clip_b": 0.24669906497001648,
+      "delta": -0.00014640390872955322
+    },
+    {
+      "id": 12,
+      "prompt": "a photo of four chairs",
+      "category": "counting",
+      "clip_a": 0.23875078558921814,
+      "clip_b": 0.23990008234977722,
+      "delta": 0.001149296760559082
+    },
+    {
+      "id": 13,
+      "prompt": "a photo of five books",
+      "category": "counting",
+      "clip_a": 0.2400956153869629,
+      "clip_b": 0.23477400839328766,
+      "delta": -0.005321606993675232
+    },
+    {
+      "id": 14,
+      "prompt": "a photo of two birds",
+      "category": "counting",
+      "clip_a": 0.23394224047660828,
+      "clip_b": 0.2320932000875473,
+      "delta": -0.0018490403890609741
+    },
+    {
+      "id": 15,
+      "prompt": "a photo of a red apple",
+      "category": "colors",
+      "clip_a": 0.2838248610496521,
+      "clip_b": 0.28711193799972534,
+      "delta": 0.003287076950073242
+    },
+    {
+      "id": 16,
+      "prompt": "a photo of a blue car",
+      "category": "colors",
+      "clip_a": 0.22508715093135834,
+      "clip_b": 0.22439450025558472,
+      "delta": -0.0006926506757736206
+    },
+    {
+      "id": 17,
+      "prompt": "a photo of a green bottle",
+      "category": "colors",
+      "clip_a": 0.3181037902832031,
+      "clip_b": 0.31869155168533325,
+      "delta": 0.000587761402130127
+    },
+    {
+      "id": 18,
+      "prompt": "a photo of a yellow banana",
+      "category": "colors",
+      "clip_a": 0.2958967089653015,
+      "clip_b": 0.29475462436676025,
+      "delta": -0.0011420845985412598
+    },
+    {
+      "id": 19,
+      "prompt": "a photo of a purple flower",
+      "category": "colors",
+      "clip_a": 0.27714240550994873,
+      "clip_b": 0.27816373109817505,
+      "delta": 0.0010213255882263184
+    },
+    {
+      "id": 20,
+      "prompt": "a photo of a cat above a dog",
+      "category": "position",
+      "clip_a": 0.20585447549819946,
+      "clip_b": 0.20630937814712524,
+      "delta": 0.00045490264892578125
+    },
+    {
+      "id": 21,
+      "prompt": "a photo of a cup on a table",
+      "category": "position",
+      "clip_a": 0.2768983244895935,
+      "clip_b": 0.27568167448043823,
+      "delta": -0.0012166500091552734
+    },
+    {
+      "id": 22,
+      "prompt": "a photo of a book to the left of a pen",
+      "category": "position",
+      "clip_a": 0.23799225687980652,
+      "clip_b": 0.2387251853942871,
+      "delta": 0.0007329285144805908
+    },
+    {
+      "id": 23,
+      "prompt": "a photo of a bottle behind a glass",
+      "category": "position",
+      "clip_a": 0.26877331733703613,
+      "clip_b": 0.267431378364563,
+      "delta": -0.0013419389724731445
+    },
+    {
+      "id": 24,
+      "prompt": "a photo of a ball in front of a chair",
+      "category": "position",
+      "clip_a": 0.32297810912132263,
+      "clip_b": 0.3180559277534485,
+      "delta": -0.0049221813678741455
+    },
+    {
+      "id": 25,
+      "prompt": "a photo of a red cat and a blue dog",
+      "category": "color_attribution",
+      "clip_a": 0.26452821493148804,
+      "clip_b": 0.2672419548034668,
+      "delta": 0.0027137398719787598
+    },
+    {
+      "id": 26,
+      "prompt": "a photo of a green bottle and a yellow book",
+      "category": "color_attribution",
+      "clip_a": 0.3183552920818329,
+      "clip_b": 0.31866180896759033,
+      "delta": 0.0003065168857574463
+    },
+    {
+      "id": 27,
+      "prompt": "a photo of a black laptop and a white mug",
+      "category": "color_attribution",
+      "clip_a": 0.27254509925842285,
+      "clip_b": 0.27108457684516907,
+      "delta": -0.0014605224132537842
+    },
+    {
+      "id": 28,
+      "prompt": "a photo of a purple flower and an orange fruit",
+      "category": "color_attribution",
+      "clip_a": 0.36190205812454224,
+      "clip_b": 0.3607325553894043,
+      "delta": -0.0011695027351379395
+    },
+    {
+      "id": 29,
+      "prompt": "a photo of a blue bird and a red berry",
+      "category": "color_attribution",
+      "clip_a": 0.3146750032901764,
+      "clip_b": 0.3162147104740143,
+      "delta": 0.0015397071838378906
+    }
+  ]
+}

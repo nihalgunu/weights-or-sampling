@@ -1,0 +1,34 @@
+# Shared requirements for TFG + RL Post-Training experiments
+# Install in addition to conda env dependencies
+
+# Core ML
+torch>=2.0.0
+torchvision
+diffusers>=0.30.0
+transformers==4.49.0
+accelerate>=0.30.0
+
+# HuggingFace
+huggingface_hub>=0.23.0
+safetensors
+peft>=0.10.0
+
+# Training
+bitsandbytes
+sentencepiece
+protobuf
+
+# Logging
+wandb
+
+# Utilities
+scipy
+pillow
+tqdm
+einops
+omegaconf
+numpy<2.0
+
+# Evaluation (GenEval)
+pycocotools
+opencv-python

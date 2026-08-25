@@ -1,0 +1,219 @@
+{
+  "cell": "A",
+  "tfg_scale": null,
+  "tfg_every_n": null,
+  "items": [
+    {
+      "id": 0,
+      "prompt": "a photo of a cat",
+      "category": "single_object",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/000.png",
+      "clip_score": 0.2469954490661621
+    },
+    {
+      "id": 1,
+      "prompt": "a photo of a dog",
+      "category": "single_object",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/001.png",
+      "clip_score": 0.2465999275445938
+    },
+    {
+      "id": 2,
+      "prompt": "a photo of a bicycle",
+      "category": "single_object",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/002.png",
+      "clip_score": 0.24612686038017273
+    },
+    {
+      "id": 3,
+      "prompt": "a photo of a wine glass",
+      "category": "single_object",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/003.png",
+      "clip_score": 0.28458625078201294
+    },
+    {
+      "id": 4,
+      "prompt": "a photo of a clock",
+      "category": "single_object",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/004.png",
+      "clip_score": 0.2615490257740021
+    },
+    {
+      "id": 5,
+      "prompt": "a photo of a cat and a dog",
+      "category": "two_objects",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/005.png",
+      "clip_score": 0.2623099982738495
+    },
+    {
+      "id": 6,
+      "prompt": "a photo of a bicycle and a bench",
+      "category": "two_objects",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/006.png",
+      "clip_score": 0.28804510831832886
+    },
+    {
+      "id": 7,
+      "prompt": "a photo of a laptop and a coffee cup",
+      "category": "two_objects",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/007.png",
+      "clip_score": 0.2909424304962158
+    },
+    {
+      "id": 8,
+      "prompt": "a photo of a book and a pen",
+      "category": "two_objects",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/008.png",
+      "clip_score": 0.24706251919269562
+    },
+    {
+      "id": 9,
+      "prompt": "a photo of a pizza and a wine glass",
+      "category": "two_objects",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/009.png",
+      "clip_score": 0.2823486924171448
+    },
+    {
+      "id": 10,
+      "prompt": "a photo of three apples",
+      "category": "counting",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/010.png",
+      "clip_score": 0.2611434757709503
+    },
+    {
+      "id": 11,
+      "prompt": "a photo of two cats",
+      "category": "counting",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/011.png",
+      "clip_score": 0.25547417998313904
+    },
+    {
+      "id": 12,
+      "prompt": "a photo of four chairs",
+      "category": "counting",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/012.png",
+      "clip_score": 0.25670236349105835
+    },
+    {
+      "id": 13,
+      "prompt": "a photo of five books",
+      "category": "counting",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/013.png",
+      "clip_score": 0.2393372356891632
+    },
+    {
+      "id": 14,
+      "prompt": "a photo of two birds",
+      "category": "counting",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/014.png",
+      "clip_score": 0.25013160705566406
+    },
+    {
+      "id": 15,
+      "prompt": "a photo of a red apple",
+      "category": "colors",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/015.png",
+      "clip_score": 0.2932010889053345
+    },
+    {
+      "id": 16,
+      "prompt": "a photo of a blue car",
+      "category": "colors",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/016.png",
+      "clip_score": 0.20992079377174377
+    },
+    {
+      "id": 17,
+      "prompt": "a photo of a green bottle",
+      "category": "colors",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/017.png",
+      "clip_score": 0.32244375348091125
+    },
+    {
+      "id": 18,
+      "prompt": "a photo of a yellow banana",
+      "category": "colors",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/018.png",
+      "clip_score": 0.2914329469203949
+    },
+    {
+      "id": 19,
+      "prompt": "a photo of a purple flower",
+      "category": "colors",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/019.png",
+      "clip_score": 0.26185452938079834
+    },
+    {
+      "id": 20,
+      "prompt": "a photo of a cat above a dog",
+      "category": "position",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/020.png",
+      "clip_score": 0.1985286921262741
+    },
+    {
+      "id": 21,
+      "prompt": "a photo of a cup on a table",
+      "category": "position",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/021.png",
+      "clip_score": 0.2886649966239929
+    },
+    {
+      "id": 22,
+      "prompt": "a photo of a book to the left of a pen",
+      "category": "position",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/022.png",
+      "clip_score": 0.2367171198129654
+    },
+    {
+      "id": 23,
+      "prompt": "a photo of a bottle behind a glass",
+      "category": "position",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/023.png",
+      "clip_score": 0.26738888025283813
+    },
+    {
+      "id": 24,
+      "prompt": "a photo of a ball in front of a chair",
+      "category": "position",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/024.png",
+      "clip_score": 0.31711918115615845
+    },
+    {
+      "id": 25,
+      "prompt": "a photo of a red cat and a blue dog",
+      "category": "color_attribution",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/025.png",
+      "clip_score": 0.25931209325790405
+    },
+    {
+      "id": 26,
+      "prompt": "a photo of a green bottle and a yellow book",
+      "category": "color_attribution",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/026.png",
+      "clip_score": 0.32988137006759644
+    },
+    {
+      "id": 27,
+      "prompt": "a photo of a black laptop and a white mug",
+      "category": "color_attribution",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/027.png",
+      "clip_score": 0.27848583459854126
+    },
+    {
+      "id": 28,
+      "prompt": "a photo of a purple flower and an orange fruit",
+      "category": "color_attribution",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/028.png",
+      "clip_score": 0.3640470504760742
+    },
+    {
+      "id": 29,
+      "prompt": "a photo of a blue bird and a red berry",
+      "category": "color_attribution",
+      "image_path": "outputs/ckpt_sweep/ckpt_500/cell_a/029.png",
+      "clip_score": 0.3009771406650543
+    }
+  ],
+  "wall_time_s": 320.3601460456848,
+  "mean_clip_score": 0.2713110198577245
+}

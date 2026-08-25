@@ -1,0 +1,84 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Conda
+*.conda
+
+# Outputs — large binaries only. Per-cell JSON summaries stay tracked so the
+# reported numbers recompute from commit alone (training logs are NOT tracked).
+outputs/images/
+outputs/checkpoints/
+outputs/**/cell_a/
+outputs/**/cell_b/
+outputs/**/cell_a_ref/
+outputs/**/cell_b_rho*/
+outputs/**/*.png
+models/
+
+# Security: instance id + any local secrets file
+.lambda_instance
+
+# Logs
+logs/*.out
+logs/*.err
+*.log
+
+# W&B
+wandb/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+*.key
+.huggingface/
+
+# Job tracking
+.job_ids
+
+# Cloned repos (will be cloned during setup)
+repos/
+
+# Claude settings
+.claude/
+
+# Pub-study image archives (1.5-1.7GB each — exceed GitHub limits; kept local)
+outputs/*_images.tar.gz
+outputs/study_*_images/
+outputs/study_rhoext*_images/
+
+# Per-reward lambda state files
+.lambda_instance*
+.lambda_ip*
+
+# Internal working notes and correspondence (kept local, not public)
+email*.md
+results.md
+result.md
+spreadsheet_full.md
+next_steps.md
+docs/next-steps.md
+docs/lit_review.md
+docs/tfg_vs_grpo_study.*
+
+# Preprint not public until posted to arXiv (website shows "Paper - soon")
+paper/
+docs/
