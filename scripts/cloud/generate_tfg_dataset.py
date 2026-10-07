@@ -80,6 +80,31 @@ def generate_teacher_latent(
     return latent.detach().to("cpu", dtype=torch.float32)
 
 
+def load_prompt_pool(path) -> list[dict]:
+    """json list of {id,prompt}, jsonl with a "prompt" key (flow_grpo geneval
+    train_metadata.jsonl, 50k GenEval-style prompts), or one prompt per line."""
+    p = Path(path)
+    if p.suffix == ".json":
+        data = json.load(open(p))
+        items = data if isinstance(data, list) else data.get("prompts", [])
+        out = []
+        for i, d in enumerate(items):
+            if isinstance(d, dict):
+                out.append({"id": d.get("id", i), "prompt": d["prompt"], "tag": d.get("tag", "")})
+            else:
+                out.append({"id": i, "prompt": str(d), "tag": ""})
+        return out
+    if p.suffix == ".jsonl":
+        out = []
+        for i, ln in enumerate(open(p)):
+            ln = ln.strip()
+            if ln:
+                d = json.loads(ln)
+                out.append({"id": i, "prompt": d["prompt"], "tag": d.get("tag", "")})
+        return out
+    return [{"id": i, "prompt": ln.strip(), "tag": ""} for i, ln in enumerate(open(p)) if ln.strip()]
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--prompts_file", default="scripts/cloud/prompts_train.json")
@@ -102,16 +127,38 @@ def main():
     parser.add_argument("--vae_tiling", action="store_true", default=True)
     parser.add_argument("--max_prompts", type=int, default=None,
                         help="Cap for quick dry-runs; default processes all.")
+    parser.add_argument("--tfg_mu", type=float, default=0.0,
+                        help="x0-refinement branch strength (0 = rho-only teacher, the old probe).")
+    parser.add_argument("--apply_range", default="0.2,0.8",
+                        help="sigma range in which guidance fires; default matches the eval TFG arms.")
+    parser.add_argument("--exclude_file", default=None,
+                        help="Prompt file (txt/json/jsonl) whose prompts are removed from the pool (the eval set).")
+    parser.add_argument("--max_samples", type=int, default=None,
+                        help="Total teacher samples to produce (prompts x seeds), e.g. 5000.")
+    parser.add_argument("--seeds_per_prompt", type=int, default=1,
+                        help="Teacher rollouts per prompt (different noise), for small prompt pools.")
     args = parser.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     output_dir = Path(args.output_dir)
     (output_dir / "latents").mkdir(parents=True, exist_ok=True)
 
-    with open(args.prompts_file) as f:
-        prompts = json.load(f)
+    prompts = load_prompt_pool(args.prompts_file)
+    if args.exclude_file:
+        excl = set(p["prompt"] for p in load_prompt_pool(args.exclude_file))
+        before = len(prompts)
+        prompts = [p for p in prompts if p["prompt"] not in excl]
+        print(f"excluded {before - len(prompts)} prompts present in {args.exclude_file}")
     if args.max_prompts:
         prompts = prompts[: args.max_prompts]
+    jobs = []
+    for p in prompts:
+        for k in range(args.seeds_per_prompt):
+            jobs.append({"id": p["id"] * args.seeds_per_prompt + k, "prompt": p["prompt"],
+                         "tag": p.get("tag", ""), "seed_k": k})
+    if args.max_samples:
+        jobs = jobs[: args.max_samples]
+    print(f"{len(prompts)} prompts -> {len(jobs)} teacher jobs")
 
     print(f"Loading SD3.5-M for teacher rollouts (text_encoders_cpu={args.text_encoders_cpu})...")
     pipe = build_pipe(
@@ -122,18 +169,22 @@ def main():
     predictor = CLIPPromptPredictor(device=device, torch_dtype=torch.float32)
     exec_device = next(pipe.transformer.parameters()).device
 
+    lo, hi = (float(v) for v in args.apply_range.split(","))
     guidance = TFGFlowGuidance(
         predictor=predictor,
         guidance_scale=args.tfg_rho,
         recurrence_steps=1,
         apply_every_n_steps=args.tfg_every_n,
-        apply_range=(0.1, 0.9),
+        apply_range=(lo, hi),
+        mu=args.tfg_mu,
     )
     patch_scheduler_step(pipe, guidance)
 
     manifest = {
         "model": args.model,
         "tfg_rho": args.tfg_rho,
+        "tfg_mu": args.tfg_mu,
+        "apply_range": [lo, hi],
         "tfg_every_n": args.tfg_every_n,
         "num_inference_steps": args.num_inference_steps,
         "guidance_scale": args.guidance_scale,
@@ -143,17 +194,32 @@ def main():
         "items": [],
     }
     manifest_path = output_dir / "manifest.json"
+    done_ids = set()
+    if manifest_path.exists():
+        try:
+            prev = json.load(open(manifest_path))
+            for it in prev.get("items", []):
+                if (output_dir / it["latent_path"]).exists():
+                    manifest["items"].append(it)
+                    done_ids.add(it["id"])
+            if done_ids:
+                print(f"resuming: {len(done_ids)} teacher samples already present")
+        except Exception as e:  # noqa: BLE001
+            print(f"warning: could not read previous manifest ({e}); starting fresh")
 
     try:
         t0 = time.time()
-        for p in tqdm(prompts, desc="teacher rollouts"):
+        n_new = 0
+        for p in tqdm(jobs, desc="teacher rollouts"):
+            if p["id"] in done_ids:
+                continue
             seed = args.seed_base + p["id"]
             latent = generate_teacher_latent(
                 pipe, guidance, p["prompt"], seed,
                 args.num_inference_steps, args.guidance_scale,
                 args.height, args.width, exec_device,
             )
-            latent_path = output_dir / "latents" / f"{p['id']:04d}.pt"
+            latent_path = output_dir / "latents" / f"{p['id']:06d}.pt"
             torch.save(latent, latent_path)
             manifest["items"].append({
                 "id": p["id"],
@@ -163,10 +229,12 @@ def main():
                 "latent_path": str(latent_path.relative_to(output_dir)),
                 "fires": guidance.fires_this_run,
             })
-            # Persist manifest every sample so a crash mid-generation doesn't
-            # lose progress — Stage 2 can resume from whatever landed.
-            with open(manifest_path, "w") as f:
-                json.dump(manifest, f, indent=2)
+            n_new += 1
+            # Persist the manifest periodically so a crash loses little; Stage 2
+            # resumes from whatever landed.
+            if n_new % 25 == 0:
+                with open(manifest_path, "w") as f:
+                    json.dump(manifest, f, indent=2)
         manifest["wall_s"] = time.time() - t0
     finally:
         unpatch_scheduler_step(pipe)

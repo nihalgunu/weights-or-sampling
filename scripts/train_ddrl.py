@@ -103,6 +103,20 @@ def _prompt_to_text(p) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _cast_components(pipe, dtype):
+    """Force every nn.Module component to `dtype`.
+
+    diffusers 0.39 + transformers 4.49 load SD3.5-M's CLIP text encoders as
+    fp16 with a lone bf16 projection weight despite torch_dtype=bf16, which
+    crashes encode_prompt with "Half != BFloat16". Explicit cast is cheap and
+    version-independent.
+    """
+    for name in ("text_encoder", "text_encoder_2", "text_encoder_3", "transformer", "vae"):
+        m = getattr(pipe, name, None)
+        if m is not None and hasattr(m, "to"):
+            m.to(dtype)
+
+
 def setup_policy_model(
     model_name: str,
     lora_rank: int = 64,
@@ -125,6 +139,7 @@ def setup_policy_model(
     pipe = StableDiffusion3Pipeline.from_pretrained(
         model_name, torch_dtype=torch.bfloat16
     ).to(device)
+    _cast_components(pipe, torch.bfloat16)
 
     if t5_cpu and getattr(pipe, "text_encoder_3", None) is not None:
         pipe.text_encoder_3.to("cpu")
@@ -167,6 +182,7 @@ def setup_reference_model(model_name: str, device: str = "cuda", t5_cpu: bool = 
     ref = StableDiffusion3Pipeline.from_pretrained(
         model_name, torch_dtype=torch.bfloat16
     ).to(device)
+    _cast_components(ref, torch.bfloat16)
     ref.transformer.requires_grad_(False)
     ref.transformer.eval()
     for module in (ref.vae, ref.text_encoder, ref.text_encoder_2, ref.text_encoder_3):

@@ -72,6 +72,11 @@ def build_pipe(
     pipe = StableDiffusion3Pipeline.from_pretrained(
         model_name, torch_dtype=torch.bfloat16
     ).to(device)
+    # diffusers 0.39 loads the CLIP text encoders fp16 + one bf16 weight -> "Half != BFloat16".
+    for _n in ("text_encoder", "text_encoder_2", "text_encoder_3", "transformer", "vae"):
+        _m = getattr(pipe, _n, None)
+        if _m is not None:
+            _m.to(torch.bfloat16)
 
     if text_encoders_cpu:
         # Only offload T5-XXL (text_encoder_3) — it's ~9.5GB bf16 and dominates

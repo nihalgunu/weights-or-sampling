@@ -48,6 +48,10 @@ class HPSv2PromptPredictor:
         # strip a possible 'module.' prefix
         state = {k[len("module."):] if k.startswith("module.") else k: v for k, v in state.items()}
         missing, unexpected = model.load_state_dict(state, strict=False)
+        if missing:
+            raise RuntimeError(
+                f"HPSv2 checkpoint did not populate {len(missing)} params (e.g. {missing[:3]}); "
+                "refusing to score with a partially random model")
         # tokenizer for the same arch
         self.tokenizer = open_clip.get_tokenizer(model_arch)
 

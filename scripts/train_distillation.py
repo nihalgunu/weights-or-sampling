@@ -113,6 +113,11 @@ def main():
     parser.add_argument("--no_wandb", action="store_true")
     parser.add_argument("--t5_cpu", action="store_true",
                         help="Park T5-XXL on CPU, shuttle per encode. Required on 24GB.")
+    parser.add_argument("--wall_hours", type=float, default=None,
+                        help="Stop after this many hours (matched regime: 4). Overrides --max_steps when hit first.")
+    parser.add_argument("--save_every_minutes", type=float, default=0.0)
+    parser.add_argument("--lora_fp32", action="store_true",
+                        help="Keep LoRA params in fp32 (base bf16); recommended.")
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -145,6 +150,10 @@ def main():
             lat = lat.unsqueeze(0)
         latents_by_id[item["id"]] = lat  # shape (1, 16, H/8, W/8)
 
+    if args.lora_fp32:
+        for p_ in policy_pipe.transformer.parameters():
+            if p_.requires_grad:
+                p_.data = p_.data.float()
     optimizer = torch.optim.AdamW(
         [p for p in policy_pipe.transformer.parameters() if p.requires_grad],
         lr=args.learning_rate,
@@ -162,9 +171,19 @@ def main():
         wandb.init(project="tfg-distillation", name="distill_run", config=vars(args))
 
     losses = []
-    pbar = tqdm(range(args.max_steps), desc="distill")
+    t0 = time.time()
+    wall_budget = args.wall_hours * 3600.0 if args.wall_hours else None
+    last_time_ckpt = t0
+    stop_reason = "max_steps"
+    max_steps = args.max_steps if args.max_steps and args.max_steps > 0 else 10**9
+    pbar = tqdm(range(max_steps), desc="distill")
+    step = -1
     for step in pbar:
-        batch = random.sample(items, args.batch_size)
+        if wall_budget is not None and (time.time() - t0) >= wall_budget:
+            stop_reason = "wall_hours"
+            step -= 1
+            break
+        batch = random.sample(items, min(args.batch_size, len(items)))
         prompts_text = [b["prompt"] for b in batch]
         teacher_latents = torch.cat(
             [latents_by_id[b["id"]] for b in batch], dim=0
@@ -197,18 +216,31 @@ def main():
             if use_wandb:
                 wandb.log({"train/loss": loss.item(), "train/step": step + 1})
 
-        if (step + 1) % args.save_every == 0:
-            ckpt = output_dir / f"checkpoint-{step + 1}"
+        now = time.time()
+        by_step = args.save_every and (step + 1) % args.save_every == 0
+        by_time = args.save_every_minutes and (now - last_time_ckpt) >= args.save_every_minutes * 60
+        if by_step or by_time:
+            ckpt = output_dir / f"checkpoint-{step + 1}" / "lora"
             policy_pipe.transformer.save_pretrained(str(ckpt))
+            last_time_ckpt = now
 
-    # Final checkpoint.
-    final = output_dir / "final"
+    # Final checkpoint (FlowGRPO layout <run>/checkpoint-N/lora, plus legacy `final`).
+    n_steps = step + 1
+    final = output_dir / f"checkpoint-{n_steps}" / "lora"
     policy_pipe.transformer.save_pretrained(str(final))
-    print(f"saved distilled LoRA to {final}")
+    legacy = output_dir / "final"
+    policy_pipe.transformer.save_pretrained(str(legacy))
+    print(f"saved distilled LoRA to {final} ({n_steps} steps, {stop_reason}, {time.time()-t0:.0f}s)")
 
-    # Persist a loss curve for result.md.
+    # Persist a loss curve + summary.
     with open(output_dir / "loss_curve.json", "w") as f:
         json.dump({"losses": losses}, f)
+    with open(output_dir / "summary.json", "w") as f:
+        json.dump({"steps": n_steps, "stop_reason": stop_reason, "elapsed_s": round(time.time() - t0, 1),
+                   "n_teacher": len(items), "lr": args.learning_rate, "seed": args.seed,
+                   "loss_first50": sum(losses[:50]) / max(1, len(losses[:50])) if losses else None,
+                   "loss_last50": sum(losses[-50:]) / max(1, len(losses[-50:])) if losses else None,
+                   "final_checkpoint": str(final)}, f, indent=2)
 
     if use_wandb:
         wandb.finish()

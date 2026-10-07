@@ -59,6 +59,10 @@ from scripts.cloud.eval_lora_compressibility import (
 )
 
 
+# Rewards scored through their own predictor (no flow_grpo scorer class).
+NONSTD = ("aesthetic", "imagereward", "hpsv2", "siglip")
+
+
 def load_prompt_lines(path: Path, n: int) -> list[str]:
     if path.suffix == ".json":
         data = json.loads(path.read_text())
@@ -106,7 +110,7 @@ def load_lora(pipe, lora_path: Path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="stabilityai/stable-diffusion-3.5-medium")
-    ap.add_argument("--reward", choices=["clip", "pickscore", "ensemble", "aesthetic", "imagereward"], required=True,
+    ap.add_argument("--reward", choices=["clip", "pickscore", "ensemble", "aesthetic", "imagereward", "hpsv2", "siglip"], required=True,
                     help="Primary reward: selects the TFG guidance predictor and the headline scorer.")
     ap.add_argument("--prompts-file", required=True)
     ap.add_argument("--num-prompts", type=int, default=30)
@@ -202,18 +206,24 @@ def main():
     elif args.reward == "imagereward":
         from scripts.imagereward_predictor import ImageRewardPredictor
         predictor = ImageRewardPredictor(device=device)
+    elif args.reward == "hpsv2":
+        from scripts.hpsv2_predictor import HPSv2PromptPredictor
+        predictor = HPSv2PromptPredictor(device=device)
+    elif args.reward == "siglip":
+        from scripts.siglip_predictor import SiglipPromptPredictor
+        predictor = SiglipPromptPredictor(device=device)
     else:
         predictor = PickScorePromptPredictor(device=device)
     # For "ensemble", the per-image ensemble score is recomputable offline as
     # 0.5*clip + 0.5*pickscore from the stored per-metric columns; use clip
     # for progress display.
-    display = "clip" if args.reward in ("ensemble", "aesthetic", "imagereward") else args.reward
+    display = "clip" if args.reward in ("ensemble",) + NONSTD else args.reward
 
     scorers = {
         "clip": ClipRewardScorer(device=device),
         "pickscore": PickScoreScorer(device=device),
     }
-    if args.reward in ("aesthetic", "imagereward"):
+    if args.reward in NONSTD:
         import torch as _t
         import torchvision.transforms.functional as _TF
         _pred = predictor
@@ -231,9 +241,16 @@ def main():
             embed_cache[prompt] = encode_prompt_offloaded(pipe, prompt, device)
         return embed_cache[prompt]
 
-    # Pre-encode all prompts once (T5 shuttles once per prompt, not per arm).
+    # Pre-encode all prompts once with T5 resident on the GPU (one shuttle total,
+    # not one per prompt: 150 prompts took ~20 min the old way), then park it.
+    t5 = getattr(pipe, "text_encoder_3", None)
+    if t5 is not None:
+        t5.to(device)
     for p in prompts:
         get_embeds(p)
+    if t5 is not None:
+        t5.to("cpu")
+        torch.cuda.empty_cache()
     print(f"[matrix] encoded {len(prompts)} prompts in {time.time()-t_start:.0f}s")
 
     results = {
@@ -273,7 +290,7 @@ def main():
             patch_scheduler_step(pipe, guidance)
 
         arm_keys = ["clip", "pickscore", "jpeg"]
-        if args.reward in ("aesthetic", "imagereward"):
+        if args.reward in NONSTD:
             arm_keys.append(args.reward)
         arm_scores = {k: {} for k in arm_keys}
         t_arm = time.time()
@@ -301,7 +318,7 @@ def main():
                     arm_scores["clip"][str(b)].append(scorers["clip"](img, prompt))
                     arm_scores["pickscore"][str(b)].append(scorers["pickscore"](img, prompt))
                     arm_scores["jpeg"][str(b)].append(jpeg_compressibility(img))
-                    if args.reward in ("aesthetic", "imagereward"):
+                    if args.reward in NONSTD:
                         arm_scores[args.reward][str(b)].append(scorers[args.reward](img, prompt))
                     if args.image_dir:
                         d = Path(args.image_dir) / name / str(b)

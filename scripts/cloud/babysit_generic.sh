@@ -51,10 +51,12 @@ if [ ! -f "$INST_FILE" ]; then
     CANDIDATES=$(curl -s -u "$LAMBDA_API_KEY:" https://cloud.lambdalabs.com/api/v1/instance-types | python3 -c "
 import json, sys
 d = json.load(sys.stdin)['data']
-for t in ['gpu_1x_h100_pcie', 'gpu_1x_h100_sxm5', 'gpu_1x_gh200']:
+skip = set(__import__('os').environ.get('BABYSIT_SKIP_REGIONS', '').split())
+for t in __import__('os').environ.get('BABYSIT_GPU_TYPES', 'gpu_1x_h100_pcie gpu_1x_h100_sxm5 gpu_1x_gh200').split():
     if t in d:
         for r in d[t]['regions_with_capacity_available']:
-            print(t, r['name'])
+            if r['name'] not in skip:
+                print(t, r['name'])
 ")
     [ -n "$CANDIDATES" ] || { log "FATAL: no 80GB capacity"; exit 1; }
     LAUNCHED=0
@@ -78,7 +80,7 @@ if [ ! -f "$IP_FILE" ]; then
         IP=$(echo "$INFO" | python3 -c "import json,sys; print(json.load(sys.stdin).get('data',{}).get('ip','') or '')")
         if [ "$STATUS" = "active" ] && [ -n "$IP" ]; then echo "$IP" > "$IP_FILE"; break; fi
     done
-    [ -f "$IP_FILE" ] || { log "FATAL: never active"; exit 1; }
+    [ -f "$IP_FILE" ] || { log "not active after the wait; terminating the stuck instance"; terminate_box; log "FATAL: never active"; exit 1; }
 fi
 IP="$(cat "$IP_FILE")"
 log "instance $INST @ $IP"
@@ -96,6 +98,14 @@ STATE=$($SSH "ubuntu@$IP" "grep -qF '$SENTINEL' ~/haotian_research-1/$RUNNER_LOG
 log "remote state: $STATE"
 
 if [ "$STATE" = "IDLE" ]; then
+    # One runner per box: never kick on top of a live training/eval process
+    # (two evals on one 40GB box OOM'd each other and the box idled 8h).
+    STRAY=$($SSH "ubuntu@$IP" "pgrep -fa 'train_draft.py|train_distillation.py|train_sd3.py|eval_study_matrix.py|generate_tfg_dataset.py|pdep_measure.py' | grep -v pgrep | head -3" 2>/dev/null || true)
+    if [ -n "$STRAY" ]; then
+        log "FATAL: box already has a live GPU job, refusing to kick a second runner:"
+        echo "$STRAY" | tee -a "$LOG"
+        exit 1
+    fi
     $SSH "ubuntu@$IP" 'mkdir -p ~/haotian_research-1/logs ~/haotian_research-1/outputs/checkpoints'
     rsync -az -e "$SSH" --delete scripts/ "ubuntu@$IP:/home/ubuntu/haotian_research-1/scripts/" >> "$LOG" 2>&1
     for U in $UPLOADS; do
@@ -104,10 +114,14 @@ if [ "$STATE" = "IDLE" ]; then
             "ubuntu@$IP:/home/ubuntu/haotian_research-1/outputs/checkpoints/" >> "$LOG" 2>&1 \
             || { log "FATAL: upload $U failed"; exit 1; }
     done
+    # The kick ssh session can hang for ~35 min even though the runner started
+    # (see lambda-ops notes); bound it and trust the pgrep check below instead.
     $SSH "ubuntu@$IP" "cd ~/haotian_research-1 && mkdir -p logs && \
         setsid nohup env HF_TOKEN='$HF_TOKEN' bash $RUNNER \
-        > $RUNNER_LOG 2>&1 < /dev/null & echo kicked" \
-        || { log "FATAL: kick failed"; exit 1; }
+        > $RUNNER_LOG 2>&1 < /dev/null & echo kicked" >> "$LOG" 2>&1 &
+    KPID=$!
+    for _i in $(seq 1 24); do sleep 5; kill -0 $KPID 2>/dev/null || break; done
+    kill $KPID 2>/dev/null && log "kick ssh hung; killed it, verifying runner via pgrep" || true
     sleep 20
     ALIVE=$($SSH "ubuntu@$IP" "pgrep -f '$PGPAT' | head -1" 2>/dev/null || true)
     if [ -z "$ALIVE" ]; then
@@ -120,13 +134,21 @@ fi
 
 if [ "$STATE" != "DONE" ]; then
     DEADLINE=$(( $(date +%s) + WATCH_HOURS * 3600 ))
+    IDLE_POLLS=0
     while [ "$(date +%s)" -lt "$DEADLINE" ]; do
         sleep 300
-        TAIL=$($SSH "ubuntu@$IP" "tail -6 ~/haotian_research-1/$RUNNER_LOG 2>/dev/null" 2>/dev/null || true)
+        # FATAL can be buried under a traceback: scan 40 lines, not 6.
+        TAIL=$($SSH "ubuntu@$IP" "tail -40 ~/haotian_research-1/$RUNNER_LOG 2>/dev/null" 2>/dev/null || true)
         if echo "$TAIL" | grep -qF "$SENTINEL"; then log "runner finished."; break; fi
         if echo "$TAIL" | grep -qF "FATAL:"; then log "runner FATAL"; break; fi
         HB=$($SSH "ubuntu@$IP" "tail -1 ~/haotian_research-1/$RUNNER_LOG 2>/dev/null | tr -d '\r' | head -c 90" 2>/dev/null || echo unreachable)
-        log "hb: $HB"
+        # Idle-GPU guard: a live box doing 0% GPU for 20 min is a dead or hung runner.
+        UTIL=$($SSH "ubuntu@$IP" "nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null | head -1" 2>/dev/null || echo "?")
+        ALIVE_NOW=$($SSH "ubuntu@$IP" "pgrep -f '$PGPAT' | head -1" 2>/dev/null || echo "?")
+        if [ "$UTIL" = "0" ]; then IDLE_POLLS=$((IDLE_POLLS + 1)); else IDLE_POLLS=0; fi
+        log "hb: gpu=${UTIL}% $HB"
+        if [ -z "$ALIVE_NOW" ]; then log "runner process gone without sentinel — treating as FATAL"; break; fi
+        if [ "$IDLE_POLLS" -ge 4 ]; then log "GPU idle for 20 min with runner alive — treating as FATAL"; break; fi
     done
 fi
 

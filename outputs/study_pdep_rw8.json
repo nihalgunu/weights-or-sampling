@@ -1,0 +1,20 @@
+{
+ "hpsv2_geneval": {
+  "mean_pairwise_cos": 0.4895695112645626,
+  "sd_over_images": 0.2081115977528962,
+  "n_prompts": 16,
+  "n_images": 8
+ },
+ "siglip_geneval": {
+  "mean_pairwise_cos": 0.6364573836326599,
+  "sd_over_images": 0.14905365801272935,
+  "n_prompts": 16,
+  "n_images": 8
+ },
+ "clip_pickapic": {
+  "mean_pairwise_cos": 0.32789336889982224,
+  "sd_over_images": 0.10627835740131324,
+  "n_prompts": 16,
+  "n_images": 8
+ }
+}
