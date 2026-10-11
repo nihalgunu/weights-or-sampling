@@ -5,7 +5,8 @@
 # {2,5,10,20} (coordinate 1, the slope) + RL arm on 150 prompts.
 # With the five settings already measured this gives the 8-point predictor.
 #
-# Usage: HF_TOKEN=... bash scripts/cloud/run_rw8.sh [all|tfg|rl]
+# Usage: HF_TOKEN=... bash scripts/cloud/run_rw8.sh [all|tfg|rl] ["SEEDS"] [TAG]
+#   e.g. run_rw8.sh rl "43 44" _s43_44  -> extra GRPO seeds, outputs study_rw8_<key>_rl_s43_44_matrix.json
 #   all : everything on one 80GB box (default)
 #   tfg : eval-only half (pre-flight cosine, TFG dose-responses, ensemble dose) — fits a 40GB A100
 #   rl  : the beta=0 GRPO trainings + base/RL eval only — needs 80GB
@@ -21,10 +22,12 @@ log() { echo "[$(date +%H:%M:%S)] $*"; }
 : "${HF_TOKEN:?}"
 export FG_GROUP=8 FG_NBPE=8
 STAGE="${1:-all}"
+SEEDS="${2:-${RW8_SEEDS:-42}}"
+TAG="${3:-${RW8_TAG:-}}"
 KEYS="${RW8_KEYS:-hpsv2 siglip clip_pickapic}"
 WALL="${RW8_WALL:-4}"
 SEEDBASES="${RW8_SEEDBASES:-0}"
-log "=== RW8 start: keys [$KEYS], ${WALL}h beta=0 seed 42 each, dose-response rho 2,5,10,20 ==="
+log "=== RW8 start: keys [$KEYS], ${WALL}h beta=0 seeds [$SEEDS] each, tag [$TAG], dose-response rho 2,5,10,20 ==="
 
 # 0. environment + predictor load checks (fail fast, before any GPU-hours)
 if [ "$STAGE" = "tfg" ]; then
@@ -69,22 +72,25 @@ fi
 # 3. per setting: train + eval
 lora_of() { ls -d "$PROJECT_ROOT"/outputs/checkpoints/$1/checkpoint-*/lora 2>/dev/null | sort -t- -k2 -V | tail -1; }
 for KEY in $KEYS; do
-  DEST="flowgrpo_${KEY}_b0_s42"
-  if [ "$STAGE" != "tfg" ] && [ -z "$(lora_of $DEST)" ]; then
-    log ">>> training $KEY beta=0 seed 42 (${WALL}h)"
-    rm -rf "$PROJECT_ROOT/repos/flow_grpo/logs/$KEY" "$PROJECT_ROOT/outputs/checkpoints/flowgrpo_$KEY"
-    HF_TOKEN="$HF_TOKEN" FG_REWARD=$KEY FG_SEED=42 FG_BETA=0 bash scripts/cloud/run_flowgrpo_extra.sh "$WALL" \
-      || log "WARN: $KEY train nonzero"
-    [ -d "$PROJECT_ROOT/outputs/checkpoints/flowgrpo_$KEY" ] && mv "$PROJECT_ROOT/outputs/checkpoints/flowgrpo_$KEY" "$PROJECT_ROOT/outputs/checkpoints/$DEST"
-  fi
-  L=$(lora_of $DEST); RL_ARGS=()
-  [ "$STAGE" = "tfg" ] && L=""
-  if [ -n "$L" ]; then
-    python3 scripts/cloud/verify_lora_load.py "$L" 2>&1 | tail -2 || log "WARN: verify_lora_load failed"
-    RL_ARGS+=(--rl-lora "rl_b0_s42=$L")
-  else
-    log "WARN: no RL checkpoint for $KEY — dose-response only"
-  fi
+  RL_ARGS=()
+  for SEED in $SEEDS; do
+    DEST="flowgrpo_${KEY}_b0_s${SEED}"
+    if [ "$STAGE" != "tfg" ] && [ -z "$(lora_of $DEST)" ]; then
+      log ">>> training $KEY beta=0 seed $SEED (${WALL}h)"
+      rm -rf "$PROJECT_ROOT/repos/flow_grpo/logs/$KEY" "$PROJECT_ROOT/outputs/checkpoints/flowgrpo_$KEY"
+      HF_TOKEN="$HF_TOKEN" FG_REWARD=$KEY FG_SEED=$SEED FG_BETA=0 bash scripts/cloud/run_flowgrpo_extra.sh "$WALL" \
+        || log "WARN: $KEY seed $SEED train nonzero"
+      [ -d "$PROJECT_ROOT/outputs/checkpoints/flowgrpo_$KEY" ] && mv "$PROJECT_ROOT/outputs/checkpoints/flowgrpo_$KEY" "$PROJECT_ROOT/outputs/checkpoints/$DEST"
+    fi
+    L=$(lora_of $DEST)
+    [ "$STAGE" = "tfg" ] && L=""
+    if [ -n "$L" ]; then
+      python3 scripts/cloud/verify_lora_load.py "$L" 2>&1 | tail -2 || log "WARN: verify_lora_load failed"
+      RL_ARGS+=(--rl-lora "rl_b0_s${SEED}=$L")
+    else
+      log "WARN: no RL checkpoint for $KEY seed $SEED"
+    fi
+  done
   case "$KEY" in
     hpsv2)         EV_REWARD=hpsv2;  EV_PROMPTS="$PUB_PROMPTS" ;;
     siglip)        EV_REWARD=siglip; EV_PROMPTS="$PUB_PROMPTS" ;;
@@ -97,7 +103,7 @@ for KEY in $KEYS; do
     --ckpt-dir "$PROJECT_ROOT/outputs/checkpoints" \
     --tfg-rhos "$RHOS" --stack-rhos "" "${RL_ARGS[@]}" \
     --seed-bases "$SEEDBASES" \
-    --out "outputs/study_rw8_${KEY}${SUF}_matrix.json" \
+    --out "outputs/study_rw8_${KEY}${SUF}${TAG}_matrix.json" \
     || { log "FATAL: $KEY eval failed"; exit 1; }
 done
 
@@ -115,6 +121,6 @@ cp -f outputs/study_rw8_ensemble_dose_matrix.json outputs/checkpoints/ 2>/dev/nu
 # 4. bundle LoRAs + train logs (+ the ensemble dose matrix, since the pull is a fixed file list)
 B=()
 [ -f outputs/checkpoints/study_rw8_ensemble_dose_matrix.json ] && B+=("study_rw8_ensemble_dose_matrix.json")
-for KEY in $KEYS; do L=$(lora_of flowgrpo_${KEY}_b0_s42); [ -n "$L" ] && B+=("${L#$PROJECT_ROOT/outputs/checkpoints/}"); done
-[ ${#B[@]} -gt 0 ] && tar czf outputs/rw8_ckpts.tar.gz -C outputs/checkpoints "${B[@]}" || log "WARN: bundle failed"
+for KEY in $KEYS; do for SEED in $SEEDS; do L=$(lora_of flowgrpo_${KEY}_b0_s${SEED}); [ -n "$L" ] && B+=("${L#$PROJECT_ROOT/outputs/checkpoints/}"); done; done
+[ ${#B[@]} -gt 0 ] && tar czf "outputs/rw8_ckpts${TAG}.tar.gz" -C outputs/checkpoints "${B[@]}" || log "WARN: bundle failed"
 log "=== RW8[$STAGE] done ==="
