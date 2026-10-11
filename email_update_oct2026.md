@@ -2,12 +2,19 @@ Subject: Weights or Sampling — two updates
 
 Hi Haotian,
 
-Two results since the workshop version, both on your August question (when does training help, and why).
+Two results since the workshop version, on your August question of when training helps.
 
-**1. I added the missing competitor: DRaFT, i.e. training the weights on the same reward gradient guidance uses.**
-It's the strongest thing on the weights side and the least safe. On CLIP it reaches +0.13 after about an hour (guidance at ρ=20 is +0.115, GRPO +0.048), then collapses into CLIP-adversarial texture within another hour. Happened in both runs, at different steps. A velocity-KL term stops the collapse but not the trade: the model plateaus near +0.10 while PickScore and compressibility keep getting worse. Guidance gets the same reward with flat cross-metrics. Images attached. The one-line version: the gradient is the signal that matters, and only the sampler uses it without paying in image quality.
+1. Added the missing arm: DRaFT, training weights on the reward gradient guidance uses. On CLIP it reaches +0.13 in an hour (guidance +0.115, GRPO +0.048), then collapses into CLIP-adversarial texture, in both runs. A velocity-KL term stops the collapse but not the trade: a +0.10 plateau while PickScore and compressibility keep degrading. Guidance matches it with flat cross-metrics. Images attached.
 
-**2. I tested the pre-flight diagnostic on three new rewards (HPSv2, SigLIP, CLIP on Pick-a-Pic prompts), predictions written down before the RL runs.**
+2. Pre-flight diagnostic on three new rewards (HPSv2, SigLIP, CLIP/Pick-a-Pic), predictions written down first. Steepness orders the guidance gain on all eight settings. Prompt-dependence only gets the extremes right, so it stays an ordering, not a predictor. Table attached.
+
+Next: seeds on the new settings and DRaFT on the other rewards, aiming at ICML. Question: is the hacking contrast main-text material or a side result to you?
+
+Best,
+Nihal
+
+---
+Attachments: docs/figs/draft_lr1e-4_base_vs_step482_vs_step740.png, docs/figs/draft_kl05_base_vs_step735_vs_final.png, and the table below.
 
 | setting | gradient cosine | slope (norm.) | guidance @ρ20 | GRPO β=0 | RL share |
 |---|---|---|---|---|---|
@@ -19,10 +26,3 @@ It's the strongest thing on the weights side and the least safe. On CLIP it reac
 | HPSv2 | 0.49 | 0.020 | +0.014 | +0.018 | 1.26 |
 | CLIP / OCR | 0.44 | 0.061 | +0.173 | +0.026 | 0.15 |
 | CLIP / Pick-a-Pic | 0.33 | 0.074 | +0.204 | +0.009 (n.s.) | 0.04 |
-
-The steepness coordinate holds up: fitted on ρ≤10, it orders the guidance gain at ρ=20 on all eight settings. The prompt-dependence coordinate only gets the extremes right (Pick-a-Pic is where RL does nothing, as predicted; HPSv2 vs SigLIP came out backwards), and the middle is within single-seed RL noise, so I'll keep calling it an ordering, not a predictor. Guidance still beats RL on every differentiable reward at matched strength; HPSv2 and SigLIP just need ρ≥80 (+0.077 and +0.062 there).
-
-Next I'm adding seeds to the new settings and running the DRaFT arm on the other rewards, aiming at ICML. One question: does the hacking contrast belong in the main text as the mechanism for the gradient-vs-scalar axis, or is it a side result to you?
-
-Best,
-Nihal
