@@ -29,13 +29,15 @@ else
   EXPECT="study_${KEY}_draft${TAG}_matrix.json study_${KEY}_draft${TAG}_external.json study_${KEY}_draft${TAG}_images.tar.gz draft_${KEY}${TAG}_ckpts.tar.gz"
   WATCH=$(python3 -c "print(int(3*$HOURS + 6))")
 fi
-# macOS has no setsid; nohup + disown detaches well enough for a local driver.
-if command -v setsid >/dev/null 2>&1; then
-  setsid nohup bash scripts/cloud/babysit_generic.sh "$NAME" "$RUNNER" "$SENTINEL" "$EXPECT" "" "$WATCH" \
-    > "logs/kick_${NAME}.out" 2>&1 < /dev/null &
-else
-  nohup bash scripts/cloud/babysit_generic.sh "$NAME" "$RUNNER" "$SENTINEL" "$EXPECT" "" "$WATCH" \
-    > "logs/kick_${NAME}.out" 2>&1 < /dev/null &
-  disown
+# Mirror every seed's checkpoint dir (exact-state checkpoints -> a lost box resumes)
+# plus the matrix file (per-arm resume) unless the caller set BABYSIT_SYNC.
+if [ -z "${BABYSIT_SYNC:-}" ]; then
+  SYNC=""
+  if [ "$KEY" != "pilot" ]; then
+    for S in $SEEDS; do SYNC="$SYNC outputs/checkpoints/draft_${KEY}${TAG}_s${S}"; done
+    SYNC="$SYNC outputs/study_${KEY}_draft${TAG}_matrix.json"
+  fi
+  export BABYSIT_SYNC="${SYNC# }"
 fi
-echo "kicked $NAME (pid $!) — log: logs/babysit_g_${NAME}.log"
+# kick_generic.sh = detached driver + capacity retry + lost-box relaunch with restore.
+exec bash scripts/cloud/kick_generic.sh "$NAME" "$RUNNER" "$SENTINEL" "$EXPECT" "$WATCH" "${RETRY_HOURS:-6}"

@@ -66,7 +66,7 @@ for SEED in $SEEDS; do
     --output_dir "$OUT" --seed "$SEED" --wall_hours "$WALL_HOURS" --max_steps 0 \
     --batch_size 8 --learning_rate "$LR" --lora_rank 64 --lora_alpha 128 --lora_fp32 \
     --save_every 0 --save_every_minutes 30 --log_every 20 --no_wandb \
-    2>&1 | grep -vE "it/s\]|s/it\]" | tee "logs/distill_fair_s${SEED}.log" || log "WARN: seed $SEED nonzero"
+    2>&1 | grep -vE "it/s\]|s/it\]" | tee -a "logs/distill_fair_s${SEED}.log" || log "WARN: seed $SEED nonzero"
 done
 
 # --- 3. Eval ---

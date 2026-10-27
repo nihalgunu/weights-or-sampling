@@ -46,6 +46,20 @@ from scripts.train_ddrl import (
     _encode_prompts_cfg,
     setup_policy_model,
 )
+from scripts.train_state import (
+    check_config,
+    config_subset,
+    load_train_state,
+    resolve_resume,
+    restore_rng,
+    restore_trainable,
+    save_lora_dir,
+    save_train_state,
+    truncate_jsonl,
+)
+
+# args that define the experiment; a resume with any of these changed is refused.
+RESUME_CONFIG_KEYS = ("seed", "learning_rate", "batch_size", "max_grad_norm", "lora_rank", "lora_alpha")
 
 
 def load_manifest(path: str) -> tuple[dict, list]:
@@ -118,6 +132,9 @@ def main():
     parser.add_argument("--save_every_minutes", type=float, default=0.0)
     parser.add_argument("--lora_fp32", action="store_true",
                         help="Keep LoRA params in fp32 (base bf16); recommended.")
+    parser.add_argument("--resume", default="auto",
+                        help="auto (default: continue from the latest resumable checkpoint in --output_dir), "
+                             "none (fresh run), or a checkpoint-N directory.")
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -154,13 +171,6 @@ def main():
         for p_ in policy_pipe.transformer.parameters():
             if p_.requires_grad:
                 p_.data = p_.data.float()
-    optimizer = torch.optim.AdamW(
-        [p for p in policy_pipe.transformer.parameters() if p.requires_grad],
-        lr=args.learning_rate,
-    )
-
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
 
     use_wandb = (
         wandb is not None
@@ -170,18 +180,87 @@ def main():
     if use_wandb:
         wandb.init(project="tfg-distillation", name="distill_run", config=vars(args))
 
-    losses = []
+    summary = train_distill(policy_pipe, items, latents_by_id, args, args.output_dir, device=device,
+                            resume=args.resume, wandb_run=wandb if use_wandb else None)
+    print(f"saved distilled LoRA to {summary['final_checkpoint']} ({summary['steps']} steps, "
+          f"{summary['stop_reason']}, {summary['elapsed_s']:.0f}s)")
+
+    if use_wandb:
+        wandb.finish()
+
+
+def train_distill(
+    policy_pipe,
+    items: list,
+    latents_by_id: dict,
+    args,
+    output_dir: str | Path,
+    device: str = "cuda",
+    encode_fn=None,
+    log_fn=print,
+    resume: str | Path | None = "auto",
+    wandb_run=None,
+) -> dict:
+    """Flow-matching LoRA loop over teacher latents. Stops at args.max_steps
+    (<=0 = unbounded) or args.wall_hours, whichever first.
+
+    encode_fn(list[str]) -> (pos, neg, pos_pooled, neg_pooled); defaults to the
+    SD3 CFG encoder, injectable for the CPU test. resume as in train_draft.py:
+    "auto" continues from the latest <output_dir>/checkpoint-N with a
+    train_state.pt (exact replay: params, Adam moments, RNG, counters, budget).
+    """
+    if encode_fn is None:
+        encode_fn = lambda texts: _encode_prompts_cfg(policy_pipe, texts, device)  # noqa: E731
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    params = [p for p in policy_pipe.transformer.parameters() if p.requires_grad]
+    if not params:
+        raise RuntimeError("no trainable parameters: LoRA not attached?")
+    optimizer = torch.optim.AdamW(params, lr=args.learning_rate)
+
+    losses: list[float] = []
     t0 = time.time()
     wall_budget = args.wall_hours * 3600.0 if args.wall_hours else None
-    last_time_ckpt = t0
     stop_reason = "max_steps"
     max_steps = args.max_steps if args.max_steps and args.max_steps > 0 else 10**9
-    pbar = tqdm(range(max_steps), desc="distill")
-    step = -1
-    for step in pbar:
+    log_path = output_dir / "train_log.jsonl"
+    step = 0            # optimizer steps completed
+    resumed_from = None
+
+    resume_dir = resolve_resume(resume, output_dir)
+    if resume_dir is not None:
+        state = load_train_state(resume_dir / "train_state.pt")
+        check_config(state["config"], config_subset(args, RESUME_CONFIG_KEYS), RESUME_CONFIG_KEYS)
+        n_restored = restore_trainable(policy_pipe.transformer, state["trainable"])
+        optimizer.load_state_dict(state["optimizer"])
+        restore_rng(state["rng"])          # the sampler is the global `random` module here
+        lp = state["loop"]
+        step = int(lp["step"])
+        losses = list(lp["losses"])
+        t0 = time.time() - float(lp["elapsed_s"])
+        kept = truncate_jsonl(log_path, step)
+        resumed_from = str(resume_dir)
+        log_fn(f"[distill] RESUMED from {resume_dir}: step {step}, {lp['elapsed_s']:.0f}s elapsed, "
+               f"{n_restored} param tensors, log kept {kept} records")
+    log_f = open(log_path, "a")
+    last_time_ckpt = time.time()
+
+    def _save_checkpoint(n: int) -> Path:
+        ckpt_dir = output_dir / f"checkpoint-{n}"
+        save_lora_dir(policy_pipe.transformer, ckpt_dir / "lora")
+        save_train_state(
+            ckpt_dir, policy_pipe.transformer, optimizer,
+            loop={"step": n, "elapsed_s": round(time.time() - t0, 3), "losses": losses},
+            config=config_subset(args, RESUME_CONFIG_KEYS),
+        )
+        return ckpt_dir / "lora"
+
+    pbar = tqdm(total=max_steps if max_steps < 10**9 else None, initial=step, desc="distill",
+                disable=log_fn is not print)
+    while step < max_steps:
         if wall_budget is not None and (time.time() - t0) >= wall_budget:
             stop_reason = "wall_hours"
-            step -= 1
             break
         batch = random.sample(items, min(args.batch_size, len(items)))
         prompts_text = [b["prompt"] for b in batch]
@@ -189,9 +268,7 @@ def main():
             [latents_by_id[b["id"]] for b in batch], dim=0
         ).to(device=device, dtype=torch.float32)
 
-        pos_embeds, _neg, pos_pooled, _negp = _encode_prompts_cfg(
-            policy_pipe, prompts_text, device
-        )
+        pos_embeds, _neg, pos_pooled, _negp = encode_fn(prompts_text)
 
         optimizer.zero_grad()
         loss = compute_fm_loss(
@@ -203,47 +280,44 @@ def main():
             torch.device(device),
         )
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(
-            [p for p in policy_pipe.transformer.parameters() if p.requires_grad],
-            args.max_grad_norm,
-        )
+        torch.nn.utils.clip_grad_norm_(params, args.max_grad_norm)
         optimizer.step()
+        step += 1
 
         losses.append(loss.item())
-        if (step + 1) % args.log_every == 0:
+        log_f.write(json.dumps({"step": step, "loss": losses[-1],
+                                "elapsed_s": round(time.time() - t0, 1)}) + "\n")
+        log_f.flush()
+        pbar.update(1)
+        if args.log_every and step % args.log_every == 0:
             recent = losses[-args.log_every:]
             pbar.set_postfix(loss=f"{sum(recent)/len(recent):.4f}")
-            if use_wandb:
-                wandb.log({"train/loss": loss.item(), "train/step": step + 1})
+            if wandb_run is not None:
+                wandb_run.log({"train/loss": losses[-1], "train/step": step})
 
         now = time.time()
-        by_step = args.save_every and (step + 1) % args.save_every == 0
+        by_step = args.save_every and step % args.save_every == 0
         by_time = args.save_every_minutes and (now - last_time_ckpt) >= args.save_every_minutes * 60
         if by_step or by_time:
-            ckpt = output_dir / f"checkpoint-{step + 1}" / "lora"
-            policy_pipe.transformer.save_pretrained(str(ckpt))
+            _save_checkpoint(step)
             last_time_ckpt = now
+    pbar.close()
+    log_f.close()
 
-    # Final checkpoint (FlowGRPO layout <run>/checkpoint-N/lora, plus legacy `final`).
-    n_steps = step + 1
-    final = output_dir / f"checkpoint-{n_steps}" / "lora"
-    policy_pipe.transformer.save_pretrained(str(final))
-    legacy = output_dir / "final"
-    policy_pipe.transformer.save_pretrained(str(legacy))
-    print(f"saved distilled LoRA to {final} ({n_steps} steps, {stop_reason}, {time.time()-t0:.0f}s)")
+    # Final checkpoint (FlowGRPO layout <run>/checkpoint-N/lora, plus legacy `final`); weight-only.
+    final = save_lora_dir(policy_pipe.transformer, output_dir / f"checkpoint-{step}" / "lora")
+    save_lora_dir(policy_pipe.transformer, output_dir / "final")
 
-    # Persist a loss curve + summary.
     with open(output_dir / "loss_curve.json", "w") as f:
         json.dump({"losses": losses}, f)
+    summary = {"steps": step, "stop_reason": stop_reason, "elapsed_s": round(time.time() - t0, 1),
+               "n_teacher": len(items), "lr": args.learning_rate, "seed": args.seed,
+               "loss_first50": sum(losses[:50]) / max(1, len(losses[:50])) if losses else None,
+               "loss_last50": sum(losses[-50:]) / max(1, len(losses[-50:])) if losses else None,
+               "final_checkpoint": str(final), "resumed_from": resumed_from}
     with open(output_dir / "summary.json", "w") as f:
-        json.dump({"steps": n_steps, "stop_reason": stop_reason, "elapsed_s": round(time.time() - t0, 1),
-                   "n_teacher": len(items), "lr": args.learning_rate, "seed": args.seed,
-                   "loss_first50": sum(losses[:50]) / max(1, len(losses[:50])) if losses else None,
-                   "loss_last50": sum(losses[-50:]) / max(1, len(losses[-50:])) if losses else None,
-                   "final_checkpoint": str(final)}, f, indent=2)
-
-    if use_wandb:
-        wandb.finish()
+        json.dump(summary, f, indent=2)
+    return summary
 
 
 if __name__ == "__main__":

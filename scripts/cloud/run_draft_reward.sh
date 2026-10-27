@@ -103,7 +103,7 @@ for SEED in $SEEDS; do
     $MEM_ARGS --grad_steps "$GRAD_STEPS" --num_inference_steps 20 \
     --gradient_checkpointing --vae_slicing \
     --save_every_minutes "$SAVE_MIN" --kl_coef "$KL" --log_every 10 \
-    2>&1 | tee "logs/draft_${KEY}${TAG}_s${SEED}.log" || log "WARN: seed $SEED exited nonzero"
+    2>&1 | tee -a "logs/draft_${KEY}${TAG}_s${SEED}.log" || log "WARN: seed $SEED exited nonzero"
 done
 
 # --- 2. Arms ---

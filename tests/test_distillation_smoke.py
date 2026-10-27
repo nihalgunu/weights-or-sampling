@@ -139,10 +139,75 @@ def test_distillation_noise_level_handles_both_ends():
         assert loss.item() > 0, f"loss is zero or negative: {loss.item()}"
 
 
+def _distill_args(**over):
+    base = dict(learning_rate=1e-2, batch_size=2, max_grad_norm=1.0, max_steps=12, wall_hours=None,
+                save_every=0, save_every_minutes=0.0, log_every=0, seed=7, lora_rank=4, lora_alpha=8)
+    base.update(over)
+    return SimpleNamespace(**base)
+
+
+def _distill_fixture(seed=5):
+    import random
+    torch.manual_seed(seed)
+    random.seed(seed)
+    B, C, H, W = 1, 4, 8, 8
+    pipe = SimpleNamespace(transformer=StubTransformer(channels=C), scheduler=StubScheduler())
+    items = [{"id": i, "prompt": f"prompt {i}"} for i in range(5)]
+    latents = {i: torch.randn(B, C, H, W) * 0.5 for i in range(5)}
+    return pipe, items, latents
+
+
+def _encode(texts):
+    B = len(texts)
+    return torch.randn(B, 77, 16), torch.zeros(B, 77, 16), torch.randn(B, 8), torch.zeros(B, 8)
+
+
+def test_distill_resume_matches_uninterrupted():
+    """Exact-state resume: 8 steps with a checkpoint at 6 (steps 7-8 = lost work),
+    then a new process resumes from checkpoint-6 to 12; must equal a straight
+    12-step run bitwise (params and loss log)."""
+    import json
+    import random
+    import tempfile
+    from pathlib import Path as _P
+    from scripts.train_distillation import train_distill
+
+    pipe_a, items, latents = _distill_fixture()
+    with tempfile.TemporaryDirectory() as da, tempfile.TemporaryDirectory() as db:
+        random.seed(5); torch.manual_seed(5)
+        sa = train_distill(pipe_a, items, latents, _distill_args(max_steps=12), da, device="cpu",
+                           encode_fn=_encode, log_fn=lambda *_: None, resume="none")
+        pipe_b, _, _ = _distill_fixture()
+        random.seed(5); torch.manual_seed(5)
+        sb = train_distill(pipe_b, items, latents, _distill_args(max_steps=8, save_every=6), db, device="cpu",
+                           encode_fn=_encode, log_fn=lambda *_: None, resume="none")
+        assert sb["steps"] == 8 and _P(db, "checkpoint-6", "train_state.pt").is_file()
+        pipe_c, _, _ = _distill_fixture()
+        with torch.no_grad():
+            for p_ in pipe_c.transformer.parameters():
+                p_.add_(1.0)
+        random.seed(999); torch.manual_seed(999)   # must be overwritten by the restored RNG
+        msgs = []
+        sc = train_distill(pipe_c, items, latents, _distill_args(max_steps=12), db, device="cpu",
+                           encode_fn=_encode, log_fn=msgs.append, resume="auto")
+        assert sc["resumed_from"].endswith("checkpoint-6") and sc["steps"] == 12
+        la = [json.loads(l) for l in _P(da, "train_log.jsonl").read_text().splitlines()]
+        lc = [json.loads(l) for l in _P(db, "train_log.jsonl").read_text().splitlines()]
+        assert [r["step"] for r in lc] == list(range(1, 13)), "duplicated/missing steps after resume"
+        for ra, rc in zip(la, lc):
+            assert abs(ra["loss"] - rc["loss"]) < 1e-12, f"step {ra['step']}: {ra['loss']} vs {rc['loss']}"
+        for (na, pa), (nc, pc) in zip(pipe_a.transformer.named_parameters(), pipe_c.transformer.named_parameters()):
+            assert na == nc and torch.equal(pa, pc), f"param {na} differs after resume"
+        assert sc["loss_last50"] == sa["loss_last50"]
+        assert _P(db, "checkpoint-12", "lora").is_dir() and _P(db, "final").is_dir()
+    print("  [distill-resume] 12-step run reproduced bitwise from a step-6 checkpoint")
+
+
 def _run_all():
     tests = [
         test_distillation_converges_on_fixed_teacher,
         test_distillation_noise_level_handles_both_ends,
+        test_distill_resume_matches_uninterrupted,
     ]
     fails = []
     for t in tests:

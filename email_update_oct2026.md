@@ -1,14 +1,16 @@
-Subject: Weights or Sampling — two updates
+Subject: Re: Weights or Sampling
 
 Hi Haotian,
 
-Two results since the workshop version, on your August question of when training helps.
+I never got an answer on framing vs structural, so I went with structural. Two things came out of October.
 
-1. Added the missing arm: DRaFT, training weights on the reward gradient guidance uses. On CLIP it reaches +0.13 in an hour (guidance +0.115, GRPO +0.048), then collapses into CLIP-adversarial texture, in both runs. A velocity-KL term stops the collapse but not the trade: a +0.10 plateau while PickScore and compressibility keep degrading. Guidance matches it with flat cross-metrics. Images attached.
+The conditions map now predicts out of sample. I added three rewards (HPSv2, SigLIP, CLIP on Pick-a-Pic) with predictions written down before training. Steepness got the guidance ordering right on all three, so it is eight for eight. The cosine coordinate failed, and I am dropping it to an ordering. Guidance at best strength beats tuned GRPO on every differentiable reward we have.
 
-2. Pre-flight diagnostic on three new rewards (HPSv2, SigLIP, CLIP/Pick-a-Pic), predictions written down first. Steepness orders the guidance gain on all eight settings. Prompt-dependence only gets the extremes right, so it stays an ordering, not a predictor. Table attached.
+The more interesting one: I added DRaFT, which trains the weights on the same gradient guidance uses. It is the strongest arm in the study for about an hour, then collapses into CLIP-adversarial texture. Happened in both runs. KL stops the collapse but the images keep degrading while guidance reaches the same reward cleanly. Same gradient, two places, very different safety. Images attached, you can see it.
 
-Next: seeds on the new settings and DRaFT on the other rewards, aiming at ICML. Question: is the hacking contrast main-text material or a side result to you?
+Aiming for ICML in January: seeds, a human audit, and a pi0.5 LIBERO test using the released piRL checkpoints.
+
+Do you have 20 minutes next week? Main thing I want your read on is whether the DRaFT contrast is the main figure or a side result.
 
 Best,
 Nihal

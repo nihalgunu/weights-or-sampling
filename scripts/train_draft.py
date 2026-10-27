@@ -70,8 +70,24 @@ from scripts.train_ddrl import (  # noqa: E402
     setup_policy_model,
     setup_reference_model,
 )
+from scripts.train_state import (  # noqa: E402
+    check_config,
+    config_subset,
+    load_train_state,
+    resolve_resume,
+    restore_rng,
+    restore_trainable,
+    save_train_state,
+    truncate_jsonl,
+)
 
 REWARDS = ("clip", "pickscore", "aesthetic", "ensemble", "imagereward")
+
+# cfg keys that define the experiment; a resume with any of these changed is refused.
+RESUME_CONFIG_KEYS = (
+    "seed", "lr", "weight_decay", "batch_size", "grad_accum", "grad_steps",
+    "num_inference_steps", "guidance_scale", "height", "width", "kl_coef", "max_grad_norm",
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -205,8 +221,15 @@ def train_draft(
     encode_fn=None,
     ref_pipe=None,
     log_fn=print,
+    resume: str | Path | None = "auto",
 ) -> dict:
     """DRaFT loop. Stops at cfg.max_steps or cfg.wall_hours, whichever first.
+
+    resume: "auto" (default) continues from the latest <output_dir>/checkpoint-N
+    that has a train_state.pt (fresh run if none); "none" forces a fresh run; a
+    path resumes from that checkpoint. A resumed run replays exactly: trainable
+    params, Adam moments, prompt sampler, RNG streams, counters and wall-clock
+    budget are all restored (scripts/train_state.py).
 
     cfg fields: seed, lr, weight_decay, batch_size, grad_accum, grad_steps,
     num_inference_steps, guidance_scale, height, width, kl_coef, max_steps,
@@ -237,11 +260,9 @@ def train_draft(
     latent_shape = (cfg.batch_size, latent_channels, cfg.height // vae_scale, cfg.width // vae_scale)
 
     log_path = output_dir / "train_log.jsonl"
-    log_f = open(log_path, "a")
     t0 = time.time()
     wall_budget = cfg.wall_hours * 3600.0 if cfg.wall_hours else None
     step, micro = 0, 0
-    last_time_ckpt = t0
     reward_hist: list[float] = []
     accum_rewards: list[float] = []
     stop_reason = "max_steps"
@@ -254,7 +275,35 @@ def train_draft(
     guard_win = max(1, int(getattr(cfg, "collapse_window", 50)))
     guard_pat = max(1, int(getattr(cfg, "collapse_patience", 60)))
     peak_sm, peak_step, below = -1e9, 0, 0
-    peak_ckpt_saved = False
+
+    resumed_from = None
+    resume_dir = resolve_resume(resume, output_dir)
+    if resume_dir is not None:
+        state = load_train_state(resume_dir / "train_state.pt")
+        check_config(state["config"], config_subset(cfg, RESUME_CONFIG_KEYS), RESUME_CONFIG_KEYS)
+        n_restored = restore_trainable(pipe.transformer, state["trainable"])
+        optimizer.load_state_dict(state["optimizer"])
+        restore_rng(state["rng"], rng)
+        lp = state["loop"]
+        step, micro = int(lp["step"]), int(lp["micro"])
+        reward_hist = list(lp["reward_hist"])
+        peak_sm, peak_step, below = lp["peak_sm"], lp["peak_step"], lp["below"]
+        t0 = time.time() - float(lp["elapsed_s"])   # wall budget counts all segments
+        kept = truncate_jsonl(log_path, step)
+        resumed_from = str(resume_dir)
+        log_fn(f"[draft] RESUMED from {resume_dir}: step {step}, micro {micro}, "
+               f"{lp['elapsed_s']:.0f}s elapsed, {n_restored} param tensors, log kept {kept} records")
+    log_f = open(log_path, "a")
+    last_time_ckpt = time.time()
+
+    def _save_checkpoint(ckpt_dir: Path) -> None:
+        save_lora(pipe.transformer, ckpt_dir)
+        save_train_state(
+            ckpt_dir, pipe.transformer, optimizer,
+            loop={"step": step, "micro": micro, "elapsed_s": round(time.time() - t0, 3),
+                  "reward_hist": reward_hist, "peak_sm": peak_sm, "peak_step": peak_step, "below": below},
+            config=config_subset(cfg, RESUME_CONFIG_KEYS), py_rng=rng,
+        )
 
     optimizer.zero_grad(set_to_none=True)
     while True:
@@ -325,7 +374,7 @@ def train_draft(
             by_step = bool(cfg.save_every) and step % cfg.save_every == 0
             by_time = bool(cfg.save_every_minutes) and (now - last_time_ckpt) >= cfg.save_every_minutes * 60
             if by_step or by_time:
-                save_lora(pipe.transformer, output_dir / f"checkpoint-{step}")
+                _save_checkpoint(output_dir / f"checkpoint-{step}")
                 last_time_ckpt = now
 
     log_f.close()
@@ -341,6 +390,7 @@ def train_draft(
         "reward_first10": (sum(reward_hist[:n]) / n) if reward_hist else None,
         "reward_last10": (sum(reward_hist[-n:]) / n) if reward_hist else None,
         "final_checkpoint": str(final_dir) if final_dir else None,
+        "resumed_from": resumed_from,
         "config": {k: v for k, v in vars(cfg).items() if not k.startswith("_")},
     }
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2))
@@ -403,6 +453,9 @@ def main():
     ap.add_argument("--save_every", type=int, default=0, help="Checkpoint every N steps (0 = off).")
     ap.add_argument("--save_every_minutes", type=float, default=30.0, help="Checkpoint every M minutes (0 = off).")
     ap.add_argument("--log_every", type=int, default=10)
+    ap.add_argument("--resume", default="auto",
+                    help="auto (default: continue from the latest resumable checkpoint in --output_dir), "
+                         "none (fresh run), or a checkpoint-N directory.")
     args = ap.parse_args()
 
     if args.wall_hours is None and args.max_steps is None:
@@ -439,7 +492,8 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     (out / "args.json").write_text(json.dumps(vars(args), indent=2))
 
-    summary = train_draft(pipe, predictor, prompts, args, out, device=device, ref_pipe=ref_pipe)
+    summary = train_draft(pipe, predictor, prompts, args, out, device=device, ref_pipe=ref_pipe,
+                          resume=args.resume)
     print(f"[draft] done: {summary['steps']} steps in {summary['elapsed_s']}s ({summary['stop_reason']}); "
           f"reward first10 {summary['reward_first10']} -> last10 {summary['reward_last10']}; "
           f"final {summary['final_checkpoint']}")

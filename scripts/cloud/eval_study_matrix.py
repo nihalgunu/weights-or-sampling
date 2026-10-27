@@ -92,6 +92,41 @@ def pick_rl_endpoints(ckpt_dir: Path, target: int = 300) -> list[str]:
     return picks
 
 
+def arms_already_done(prev: dict | None, arms: list[dict], seed_bases: list[int], n_prompts: int,
+                      arm_keys: list[str], image_dir: str | None, meta_now: dict) -> dict[str, dict]:
+    """Arms whose scores in a previous --out file are complete and comparable.
+
+    An arm is reused only if (a) the previous run's meta matches on everything
+    that changes the numbers (prompts, seed bases, steps, guidance, reward),
+    (b) every scorer has len(prompts) entries for every seed base, and (c) when
+    images are saved, the arm's PNGs are all present (external metrics need
+    them; a re-provisioned box has only what the mirror pulled back).
+    Returns {arm_name: scores} to copy over and skip.
+    """
+    if not prev or "scores" not in prev or "meta" not in prev:
+        return {}
+    pm = prev["meta"]
+    for k in ("prompts", "seed_bases", "num_steps", "guidance_scale", "reward", "base", "tfg"):
+        if pm.get(k) != meta_now.get(k):
+            print(f"[matrix] previous {k} differs; not resuming from the old file")
+            return {}
+    done = {}
+    for arm in arms:
+        sc = prev["scores"].get(arm["name"])
+        if not sc:
+            continue
+        ok = all(k in sc and all(len(sc[k].get(str(b), [])) == n_prompts for b in seed_bases) for k in arm_keys)
+        if ok and image_dir:
+            for b in seed_bases:
+                d = Path(image_dir) / arm["name"] / str(b)
+                if sum(1 for _ in d.glob("*.png")) != n_prompts if d.is_dir() else True:
+                    ok = False
+                    break
+        if ok:
+            done[arm["name"]] = sc
+    return done
+
+
 def reset_transformer(pipe, base_state_dict):
     if hasattr(pipe.transformer, "unload"):
         pipe.transformer = pipe.transformer.unload()
@@ -138,6 +173,9 @@ def main():
     ap.add_argument("--tfg-apply-every-n", type=int, default=1)
     ap.add_argument("--image-dir", default=None, help="If set, save every PNG under <dir>/<arm>/<seedbase>/")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--no-resume", action="store_true",
+                    help="Ignore an existing --out file. Default: arms already complete in it "
+                         "(same prompts/seeds/steps) are reused and skipped, so a lost box costs one arm.")
     args = ap.parse_args()
 
     device = "cuda"
@@ -253,6 +291,7 @@ def main():
         torch.cuda.empty_cache()
     print(f"[matrix] encoded {len(prompts)} prompts in {time.time()-t_start:.0f}s")
 
+    arm_keys_all = ["clip", "pickscore", "jpeg"] + ([args.reward] if args.reward in NONSTD else [])
     results = {
         "meta": {
             "base": args.base, "reward": args.reward,
@@ -269,8 +308,24 @@ def main():
         "timing": {},
     }
 
+    # Resume: reuse complete arms from a previous partial --out (written after every arm).
+    prev = None
+    if Path(args.out).is_file() and not args.no_resume:
+        try:
+            prev = json.loads(Path(args.out).read_text())
+        except json.JSONDecodeError:
+            prev = None
+    done = arms_already_done(prev, arms, seed_bases, len(prompts), arm_keys_all, args.image_dir, results["meta"])
+    if done:
+        results["scores"].update(done)
+        results["timing"].update({k: (prev.get("timing") or {}).get(k, 0.0) for k in done})
+        print(f"[matrix] resuming: {len(done)} arm(s) already complete in {args.out}: {sorted(done)}")
+
     for arm in arms:
         name = arm["name"]
+        if name in done:
+            print(f"\n[matrix] === arm: {name} === reused from previous run")
+            continue
         print(f"\n[matrix] === arm: {name} ===  ({time.time()-t_start:.0f}s elapsed)")
         reset_transformer(pipe, base_state_dict)
         if arm["lora"] is not None:

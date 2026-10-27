@@ -6,6 +6,14 @@
 # Usage:
 #   bash scripts/cloud/babysit_generic.sh NAME RUNNER_REL SENTINEL \
 #        "EXPECT_JSON1 [EXPECT_JSON2...]" "[UPLOAD_DIR1 UPLOAD_DIR2...]" [WATCH_HOURS]
+# Env:
+#   BABYSIT_SYNC="outputs/checkpoints/draft_clip_s42 outputs/study_x_matrix.json ..."
+#        Project-relative paths mirrored box -> local on every poll (rsync, partial
+#        files excluded) and pushed local -> box before a kick. With the trainers'
+#        exact-state checkpoints (scripts/train_state.py) and the eval matrix's
+#        per-arm resume, a lost box (preempted / unhealthy) costs at most one
+#        checkpoint interval: the driver exits 3 ("instance lost"), kick_generic
+#        relaunches, the restore puts the mirror back, the runner resumes.
 # Example:
 #   bash scripts/cloud/babysit_generic.sh bon scripts/cloud/run_bon.sh "=== BON done ===" \
 #        "study_bon_clip_matrix.json study_bon_pickscore_matrix.json" \
@@ -44,6 +52,31 @@ terminate_box() {
         case "$st" in terminating|terminated) rm -f "$INST_FILE" "$IP_FILE"; return 0;; esac
     done
     log "ERROR: unconfirmed termination of $id"
+}
+
+SYNC="${BABYSIT_SYNC:-}"
+REMOTE_ROOT="/home/ubuntu/haotian_research-1"
+
+mirror_sync() {   # box -> local, paths preserved (rsync -R anchors at /./)
+    local P
+    for P in $SYNC; do
+        rsync -azR --partial --exclude '*.tmp' -e "$SSH" \
+            "ubuntu@$IP:$REMOTE_ROOT/./$P" ./ >> "$LOG" 2>&1 || log "  mirror: $P not synced (yet)"
+    done
+}
+restore_sync() {  # local -> box, before a kick, so a resumed runner finds its checkpoints
+    local P
+    for P in $SYNC; do
+        [ -e "$P" ] || continue
+        log "restoring $P to the box ..."
+        rsync -azR --partial -e "$SSH" "./$P" "ubuntu@$IP:$REMOTE_ROOT/" >> "$LOG" 2>&1 \
+            || { log "FATAL: restore $P failed"; exit 1; }
+    done
+}
+instance_status() {
+    curl -s --max-time 30 -u "$LAMBDA_API_KEY:" "https://cloud.lambdalabs.com/api/v1/instances/$INST" \
+        | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('status') or ('GONE' if 'error' in d else 'QUERYFAIL'))" 2>/dev/null \
+        || echo QUERYFAIL
 }
 
 log "=== generic driver start: $NAME ($RUNNER) ==="
@@ -114,6 +147,7 @@ if [ "$STATE" = "IDLE" ]; then
             "ubuntu@$IP:/home/ubuntu/haotian_research-1/outputs/checkpoints/" >> "$LOG" 2>&1 \
             || { log "FATAL: upload $U failed"; exit 1; }
     done
+    restore_sync
     # The kick ssh session can hang for ~35 min even though the runner started
     # (see lambda-ops notes); bound it and trust the pgrep check below instead.
     $SSH "ubuntu@$IP" "cd ~/haotian_research-1 && mkdir -p logs && \
@@ -132,11 +166,13 @@ if [ "$STATE" = "IDLE" ]; then
     log "runner alive (pid $ALIVE)"
 fi
 
+LOST=0
 if [ "$STATE" != "DONE" ]; then
     DEADLINE=$(( $(date +%s) + WATCH_HOURS * 3600 ))
-    IDLE_POLLS=0
+    IDLE_POLLS=0; UNREACH=0
     while [ "$(date +%s)" -lt "$DEADLINE" ]; do
         sleep 300
+        mirror_sync
         # FATAL can be buried under a traceback: scan 40 lines, not 6.
         TAIL=$($SSH "ubuntu@$IP" "tail -40 ~/haotian_research-1/$RUNNER_LOG 2>/dev/null" 2>/dev/null || true)
         if echo "$TAIL" | grep -qF "$SENTINEL"; then log "runner finished."; break; fi
@@ -147,12 +183,34 @@ if [ "$STATE" != "DONE" ]; then
         ALIVE_NOW=$($SSH "ubuntu@$IP" "pgrep -f '$PGPAT' | head -1" 2>/dev/null || echo "?")
         if [ "$UTIL" = "0" ]; then IDLE_POLLS=$((IDLE_POLLS + 1)); else IDLE_POLLS=0; fi
         log "hb: gpu=${UTIL}% $HB"
+        # Lost box (preempted / went unhealthy): 3 unreachable polls, then ask the API.
+        if [ "$HB" = "unreachable" ]; then UNREACH=$((UNREACH + 1)); else UNREACH=0; fi
+        if [ "$UNREACH" -ge 3 ]; then
+            IST=$(instance_status)
+            log "box unreachable for 15 min; API status '$IST'"
+            case "$IST" in
+                active|booting|QUERYFAIL) ;;   # QUERYFAIL = probably our own network; keep waiting
+                terminated|GONE)
+                   log "FATAL: instance lost ($IST); mirror has $(ls -d $SYNC 2>/dev/null | wc -l | tr -d ' ') path(s)"
+                   rm -f "$INST_FILE" "$IP_FILE"; LOST=1; break;;
+                *) # unhealthy etc.: still billed until terminated (verified; files removed on success)
+                   log "FATAL: instance lost ($IST); terminating it before relaunch"
+                   terminate_box; LOST=1; break;;
+            esac
+        fi
         if [ -z "$ALIVE_NOW" ]; then log "runner process gone without sentinel — treating as FATAL"; break; fi
         if [ "$IDLE_POLLS" -ge 4 ]; then log "GPU idle for 20 min with runner alive — treating as FATAL"; break; fi
     done
 fi
 
+if [ "$LOST" = 1 ]; then
+    if [ -f "$INST_FILE" ]; then log "instance release unconfirmed — NOT relaunching; check the dashboard"; exit 1; fi
+    log "=== generic driver: instance lost; exit 3 (kick_generic relaunches and restores the mirror) ==="
+    exit 3
+fi
+
 log "pulling..."
+mirror_sync
 OK=1
 for f in $EXPECT; do
     for a in 1 2 3; do

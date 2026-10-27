@@ -149,6 +149,63 @@ def test_collapse_guard_stops_on_reward_cliff():
     assert s["stop_reason"] == "collapse_guard" and 35 <= s["steps"] <= 60, s
 
 
+def _log_rewards(d):
+    return [(json.loads(l)["step"], json.loads(l)["reward"]) for l in Path(d, "train_log.jsonl").read_text().splitlines()]
+
+
+def test_resume_matches_uninterrupted():
+    """Preempt-and-resume must reproduce the uninterrupted run exactly.
+
+    Run A: 12 steps straight. Run B: 8 steps with an exact-state checkpoint at
+    step 6 (so steps 7-8 are 'lost work' logged after the last checkpoint, as
+    after a real preemption), then a fresh process with perturbed weights
+    resumes from checkpoint-6 to 12. Params, reward log and Adam state must
+    match A bitwise; the log must not contain duplicated steps.
+    """
+    prompts = ["p1", "p2", "p3"]
+    torch.manual_seed(5)
+    pipe_a = _make_stub_pipe(batch=2)
+    with tempfile.TemporaryDirectory() as da, tempfile.TemporaryDirectory() as db:
+        sa = train_draft(pipe_a, StubPredictor(), prompts, _cfg(max_steps=12), da,
+                         device="cpu", encode_fn=_encode, log_fn=lambda *_: None)
+        torch.manual_seed(5)
+        pipe_b = _make_stub_pipe(batch=2)
+        sb1 = train_draft(pipe_b, StubPredictor(), prompts, _cfg(max_steps=8, save_every=6), db,
+                          device="cpu", encode_fn=_encode, log_fn=lambda *_: None, resume="none")
+        assert sb1["steps"] == 8 and Path(db, "checkpoint-6", "train_state.pt").is_file()
+        assert not Path(db, "checkpoint-8", "train_state.pt").exists(), "final save must stay weight-only"
+        assert len(_log_rewards(db)) == 8
+        # "new process": same non-trainable stubs (same seed), trainable params perturbed
+        torch.manual_seed(5)
+        pipe_c = _make_stub_pipe(batch=2)
+        with torch.no_grad():
+            for p_ in pipe_c.transformer.parameters():
+                p_.add_(1.0)
+        msgs = []
+        sc = train_draft(pipe_c, StubPredictor(), prompts, _cfg(max_steps=12), db,
+                         device="cpu", encode_fn=_encode, log_fn=msgs.append, resume="auto")
+        assert sc["resumed_from"].endswith("checkpoint-6"), sc["resumed_from"]
+        assert sc["steps"] == 12 and sc["micro_batches"] == sa["micro_batches"]
+        la, lc = _log_rewards(da), _log_rewards(db)
+        assert [st for st, _ in lc] == list(range(1, 13)), "log has duplicated/missing steps after resume"
+        for (sa_, ra), (sc_, rc) in zip(la, lc):
+            assert sa_ == sc_ and abs(ra - rc) < 1e-12, f"step {sa_}: {ra} vs {rc}"
+        for (na, pa), (nc, pc) in zip(pipe_a.transformer.named_parameters(), pipe_c.transformer.named_parameters()):
+            assert na == nc and torch.equal(pa, pc), f"param {na} differs after resume"
+        assert sc["peak_step"] == sa["peak_step"]
+        assert any("RESUMED" in m for m in msgs)
+        # a changed lr must be refused, not silently resumed under the old name
+        torch.manual_seed(5)
+        pipe_d = _make_stub_pipe(batch=2)
+        try:
+            train_draft(pipe_d, StubPredictor(), prompts, _cfg(max_steps=13, lr=5e-3), db,
+                        device="cpu", encode_fn=_encode, log_fn=lambda *_: None, resume="auto")
+            raise AssertionError("resume with a different lr was not refused")
+        except RuntimeError as e:
+            assert "config differs" in str(e)
+    print(f"  [resume] 12-step run reproduced bitwise from a step-6 checkpoint")
+
+
 def test_load_prompts_json_and_txt():
     with tempfile.TemporaryDirectory() as d:
         j = Path(d, "p.json"); j.write_text(json.dumps([{"prompt": "a cat"}, "a dog"]))
@@ -171,6 +228,7 @@ def _run_all():
         test_periodic_checkpoints_by_step,
         test_cached_encoder_encodes_each_prompt_once_and_batches,
         test_collapse_guard_stops_on_reward_cliff,
+        test_resume_matches_uninterrupted,
         test_load_prompts_json_and_txt,
         test_real_prompt_file_loads,
     ]
