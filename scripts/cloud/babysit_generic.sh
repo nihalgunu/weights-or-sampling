@@ -141,6 +141,7 @@ if [ "$STATE" = "IDLE" ]; then
     fi
     $SSH "ubuntu@$IP" 'mkdir -p ~/haotian_research-1/logs ~/haotian_research-1/outputs/checkpoints'
     rsync -az -e "$SSH" --delete scripts/ "ubuntu@$IP:/home/ubuntu/haotian_research-1/scripts/" >> "$LOG" 2>&1
+    rsync -az -e "$SSH" configs/ "ubuntu@$IP:/home/ubuntu/haotian_research-1/configs/" >> "$LOG" 2>&1
     for U in $UPLOADS; do
         log "uploading $U ..."
         rsync -az --partial -e "$SSH" "$U" \
