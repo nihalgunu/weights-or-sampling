@@ -60,7 +60,7 @@ REMOTE_ROOT="/home/ubuntu/haotian_research-1"
 mirror_sync() {   # box -> local, paths preserved (rsync -R anchors at /./)
     local P
     for P in $SYNC; do
-        rsync -azR --partial --exclude '*.tmp' -e "$SSH" \
+        rsync -azR --partial --exclude='*.tmp' -e "$SSH" \
             "ubuntu@$IP:$REMOTE_ROOT/./$P" ./ >> "$LOG" 2>&1 || log "  mirror: $P not synced (yet)"
     done
 }
