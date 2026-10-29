@@ -2,15 +2,15 @@ Subject: Re: Weights or Sampling
 
 Hi Haotian,
 
-I never got an answer on framing vs structural, so I went with structural. Two things came out of October.
+I never got an answer on framing vs structural, so I went with structural. Two things from October.
 
-The conditions map now predicts out of sample and has error bars. I added three rewards (HPSv2, SigLIP, CLIP on Pick-a-Pic) with predictions written down before training, then ran GRPO at three seeds on each. Steepness got the guidance ordering right on all three, so it is eight for eight. The cosine coordinate failed and I am dropping it. With seeds, the RL gain on SigLIP and CLIP/Pick-a-Pic is zero within noise while guidance stays clearly positive, so the split is cleaner than it looked with one seed: guidance matches or beats tuned GRPO on every differentiable reward we have, and RL only draws level on aesthetic and PickScore.
+The conditions map now predicts out of sample, with error bars. Three new rewards (HPSv2, SigLIP, CLIP on Pick-a-Pic), predictions written down before training, GRPO at three seeds each. Steepness got the guidance ordering right on all three, eight for eight. The cosine coordinate failed and is dropped. With seeds, RL's gain on SigLIP and CLIP/Pick-a-Pic is zero within noise while guidance stays positive. Guidance matches or beats tuned GRPO on every differentiable reward we have; RL only draws level on aesthetic and PickScore.
 
-Second: DRaFT, which trains the weights on the same gradient guidance uses. At lr 1e-4 it matches guidance's best reward for about an hour, then collapses into CLIP-adversarial texture, three seeds out of three. A lower learning rate and a fair distillation baseline are running now; I will send those with images when they finish this week.
+Second: DRaFT trains the weights on the gradient guidance uses. At lr 1e-4 it matches guidance's best reward for an hour, then collapses into CLIP-adversarial texture, three seeds of three. A lower learning rate and a fair distillation baseline finish this week; images then.
 
-Aiming for ICML in January: a human audit and a pi0.5 LIBERO test using the released piRL checkpoints.
+ICML in January: a human audit and a pi0.5 LIBERO test on the released piRL checkpoints.
 
-Do you have 20 minutes next week? Main thing I want your read on is whether the DRaFT contrast is the main figure or a side result.
+20 minutes next week? Main question: is the DRaFT contrast the main figure or a side result.
 
 Best,
 Nihal
