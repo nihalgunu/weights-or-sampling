@@ -127,9 +127,13 @@ def settings():
         d8 = load(f"study_rw8_{key}_matrix.json")
         d8t = d8 or load(f"study_rw8_{key}_tfg_matrix.json")   # TFG half (A100-able)
         d8r = d8 or load(f"study_rw8_{key}_rl_matrix.json")    # RL half (80GB)
+        d8s = load(f"study_rw8_{key}_rl_s43_44_matrix.json")   # extra GRPO seeds (Oct 28)
+        rl_pairs = ([(d8r, "rl_b0_s42", metric)] if d8r else []) + \
+                   ([(d8s, "rl_b0_s43", metric), (d8s, "rl_b0_s44", metric)] if d8s else [])
         S.append(dict(name=cos_key, metric=metric, dose=dose(d8t, metric) if d8t else [], sd=base_sd(d8t, metric) if d8t else None,
                       tfg20=delta(d8t, "tfg_rho20", metric) if d8t else None,
-                      rl=rl_mean([(d8r, "rl_b0_s42", metric)]) if d8r else (None, 0), rl_note="beta0 x1",
+                      rl=rl_mean(rl_pairs) if rl_pairs else (None, 0), rl_note=f"beta0 x{len(rl_pairs)}",
+                      rl_seeds=[delta(d, a, m) for d, a, m in rl_pairs],
                       cos=pdep8.get(cos_key, {}).get("mean_pairwise_cos")))
     return S
 
@@ -181,7 +185,10 @@ def main():
         tfg_n = (s["tfg20"] / s["sd"]) if (s["tfg20"] is not None and s["sd"]) else None
         rl_n = (rl / s["sd"]) if (rl is not None and s["sd"]) else None
         f = lambda v, w=8, p=4: (f"{v:{w}.{p}f}" if isinstance(v, (int, float)) else f"{'--':>{w}s}")
-        print(f"{s['name']:20s} {f(sl_n, 8, 3)} {f(s['cos'], 6, 3)} {f(s['tfg20'])} {f(tfg_n, 6, 2)} {f(rl)} {f(rl_n, 6, 2)} {f(share, 6, 2)}  {s['rl_note']} (dose pts {npts})")
+        seeds = s.get("rl_seeds") or []
+        seed_txt = ("  seeds[" + ", ".join(f"{v:+.4f}" for v in seeds if v is not None) + "]"
+                    + (f" sd={statistics.stdev([v for v in seeds if v is not None]):.4f}" if len([v for v in seeds if v is not None]) > 1 else "")) if seeds else ""
+        print(f"{s['name']:20s} {f(sl_n, 8, 3)} {f(s['cos'], 6, 3)} {f(s['tfg20'])} {f(tfg_n, 6, 2)} {f(rl)} {f(rl_n, 6, 2)} {f(share, 6, 2)}  {s['rl_note']} (dose pts {npts}){seed_txt}")
         if None not in (sl_n, s["cos"], share):
             rows.append((s["name"], sl_n, s["cos"], share, math.log(ratio) if ratio and ratio > 0 else None, tfg_n, rl_n))
     if len(rows) >= 3:

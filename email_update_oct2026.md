@@ -6,7 +6,7 @@ I never got an answer on framing vs structural, so I went with structural. Two t
 
 The conditions map now predicts out of sample. I added three rewards (HPSv2, SigLIP, CLIP on Pick-a-Pic) with predictions written down before training. Steepness got the guidance ordering right on all three, so it is eight for eight. The cosine coordinate failed, and I am dropping it to an ordering. Guidance at best strength beats tuned GRPO on every differentiable reward we have.
 
-The more interesting one: I added DRaFT, which trains the weights on the same gradient guidance uses. It is the strongest arm in the study for about an hour, then collapses into CLIP-adversarial texture. Happened in both runs. KL stops the collapse but the images keep degrading while guidance reaches the same reward cleanly. Same gradient, two places, very different safety. Images attached, you can see it.
+The more interesting one: I added DRaFT, which trains the weights on the same gradient guidance uses. For about an hour it matches guidance's best reward (+0.12 vs +0.115 CLIP), then it collapses into CLIP-adversarial texture. Three seeds, three collapses, between 45 minutes and 3 hours in. A KL term holds two of the three seeds at about +0.10 with visibly degrading images; the third collapses anyway. Guidance reaches the same reward cleanly. Same gradient, two places, very different safety. Images attached, you can see it.
 
 Aiming for ICML in January: seeds, a human audit, and a pi0.5 LIBERO test using the released piRL checkpoints.
 
