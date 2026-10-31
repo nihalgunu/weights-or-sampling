@@ -200,7 +200,9 @@ if [ "$STATE" != "DONE" ]; then
             esac
         fi
         if [ -z "$ALIVE_NOW" ]; then log "runner process gone without sentinel — treating as FATAL"; break; fi
-        if [ "$IDLE_POLLS" -ge 4 ]; then log "GPU idle for 20 min with runner alive — treating as FATAL"; break; fi
+        # BABYSIT_IDLE_POLLS: polls (5 min each) of ~0% GPU before giving up; 0 disables
+        # (simulator-bound runners such as LIBERO eval legitimately show 0% between bursts).
+        if [ "${BABYSIT_IDLE_POLLS:-4}" -gt 0 ] && [ "$IDLE_POLLS" -ge "${BABYSIT_IDLE_POLLS:-4}" ]; then log "GPU idle for $(( 5 * ${BABYSIT_IDLE_POLLS:-4} )) min with runner alive — treating as FATAL"; break; fi
     done
 fi
 

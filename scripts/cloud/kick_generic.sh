@@ -14,6 +14,7 @@ cd "$(pwd)"
 export BABYSIT_GPU_TYPES="${BABYSIT_GPU_TYPES:-gpu_1x_h100_pcie gpu_1x_h100_sxm5 gpu_1x_gh200}"
 export BABYSIT_SKIP_REGIONS="${BABYSIT_SKIP_REGIONS:-}"
 export BABYSIT_SYNC="${BABYSIT_SYNC:-}"
+export BABYSIT_IDLE_POLLS="${BABYSIT_IDLE_POLLS:-4}"
 DEADLINE=\$(( \$(date +%s) + ${RETRY_HOURS} * 3600 ))
 LOSSES=0
 while :; do
