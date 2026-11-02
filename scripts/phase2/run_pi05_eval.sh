@@ -2,15 +2,18 @@
 # Phase 2 M0: evaluate a PyTorch pi0.5 checkpoint on a LIBERO suite with RLinf's
 # standalone eval script, inside the RLinf Docker image. Runs on a Lambda box.
 #
-# Usage: bash scripts/phase2/run_pi05_eval.sh [SUITE] [TRIALS_PER_TASK] [HF_REPO] [TAG]
+# Usage: bash scripts/phase2/run_pi05_eval.sh [SUITE] [TRIALS_PER_TASK] [HF_REPO] [TAG] [MODE] [EXTRA_ARGS]
 #   SUITE   libero_spatial | libero_object | libero_goal | libero_10   (default libero_spatial)
 #   TRIALS  episodes per task (default 10; paper number is 50)
 #   HF_REPO default RLinf/RLinf-Pi05-LIBERO-SFT
+#   MODE    plain (default; RLinf's libero_eval.py) | guided (scripts/phase2/libero_eval_guided.py)
+#   EXTRA_ARGS one quoted string of extra flags for guided mode (e.g. '--rho 0 --equivalence_checks 50')
 # Outputs: outputs/phase2/pi05_eval_<SUITE><TAG>.json, outputs/phase2/logs/<exp>/..., sentinel line
 #   "=== PHASE2 EVAL done ===" on success.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 SUITE="${1:-libero_spatial}"; TRIALS="${2:-10}"; HF_REPO="${3:-RLinf/RLinf-Pi05-LIBERO-SFT}"; TAG="${4:-}"
+P2_MODE="${5:-${P2_MODE:-plain}}"; P2_EXTRA_ARGS="${6:-${P2_EXTRA_ARGS:-}}"
 IMG="rlinf/rlinf:agentic-rlinf0.4-maniskill_libero"
 RLINF_DIR="$PWD/repos/RLinf"; MODELS="$PWD/models"; OUT="$PWD/outputs/phase2"
 EXP="pi05_sft_${SUITE}${TAG}"
@@ -84,28 +87,49 @@ PY
 
 
 # 3. eval inside the container
-log ">>> eval $EXP"
+#    P2_MODE=plain  (default) RLinf's own libero_eval.py, unchanged (the M0 baseline path).
+#    P2_MODE=guided scripts/phase2/libero_eval_guided.py (guidance hook, fixed noise, dumps,
+#                   equivalence check); extra flags via P2_EXTRA_ARGS; writes the summary JSON itself.
+P2_DIR="$(cd "$(dirname "$0")" && pwd)"
+COMMON="--log_dir /outputs/logs --exp_name $EXP --config_name pi05_libero --pretrained_path /models/$(basename "$HF_REPO") --task_suite_name $SUITE --num_trials_per_task $TRIALS --action_chunk 5 --num_steps 5 --num_save_videos 5 --video_temp_subsample 10 --seed 7"
+case "$P2_MODE" in
+  plain)  EVAL_CMD="python toolkits/standalone_eval_scripts/openpi/libero_eval.py $COMMON"; EXTRA_DOCKER="" ;;
+  guided) EVAL_CMD="python /workspace/phase2/libero_eval_guided.py $COMMON --results_json /outputs/pi05_eval_${SUITE}${TAG}.json $P2_EXTRA_ARGS"
+          EXTRA_DOCKER="-v $P2_DIR:/workspace/phase2 -e CUBLAS_WORKSPACE_CONFIG=:4096:8" ;;
+  *) log "FATAL: unknown P2_MODE=$P2_MODE"; exit 1 ;;
+esac
+log ">>> eval $EXP (mode $P2_MODE)"
+log "    $EVAL_CMD"
+# shellcheck disable=SC2086
 $DOCKER run --rm --gpus all --shm-size 32g --ipc=host \
-  -e MUJOCO_GL=egl -e PYOPENGL_PLATFORM=egl -e HF_TOKEN="${HF_TOKEN:-}" \
+  -e MUJOCO_GL=egl -e PYOPENGL_PLATFORM=egl -e HF_TOKEN="${HF_TOKEN:-}" $EXTRA_DOCKER \
   -v "$RLINF_DIR":/workspace/RLinf -v "$MODELS":/models -v "$OUT":/outputs \
   "$IMG" bash -lc "
     set -o pipefail
     if command -v switch_env >/dev/null 2>&1; then source switch_env openpi; else echo 'no switch_env on PATH; using image default env'; fi
     cd /workspace/RLinf
-    export REPO_PATH=/workspace/RLinf PYTHONPATH=/workspace/RLinf:\${PYTHONPATH:-}
+    export REPO_PATH=/workspace/RLinf PYTHONPATH=/workspace/RLinf:/workspace/phase2:\${PYTHONPATH:-}
     echo \"container python: \$(which python) \$(python --version 2>&1)\"
     python -c 'import torch, openpi, libero; print(\"torch\", torch.__version__, \"cuda\", torch.cuda.is_available(), \"openpi\", getattr(openpi, \"__version__\", \"?\"))' || { echo \"FATAL: container env missing torch/openpi/libero\"; exit 2; }
     [ -f toolkits/standalone_eval_scripts/openpi/libero_eval.py ] || { echo \"FATAL: libero_eval.py not in RLinf checkout\"; exit 2; }
-    python toolkits/standalone_eval_scripts/openpi/libero_eval.py \
-      --log_dir /outputs/logs --exp_name $EXP --config_name pi05_libero \
-      --pretrained_path /models/$(basename "$HF_REPO") --task_suite_name $SUITE \
-      --num_trials_per_task $TRIALS --action_chunk 5 --num_steps 5 \
-      --num_save_videos 5 --video_temp_subsample 10 --seed 7
+    $EVAL_CMD
   " 2>&1 | tee "$OUT/logs/${EXP}.stdout"
 RC=${PIPESTATUS[0]}
 [ "$RC" = 0 ] || { log "FATAL: eval exited $RC"; exit 1; }
 
-# 4. summary json from the log
+# 4. summary json: guided mode wrote it; validate. plain mode: parse the log.
+if [ "$P2_MODE" = guided ]; then
+python3 - "$OUT/pi05_eval_${SUITE}${TAG}.json" "$TRIALS" <<'PY' || { log "FATAL: guided summary incomplete"; exit 1; }
+import json, sys
+d = json.load(open(sys.argv[1]))
+n_tasks = len(d["task_ids"]); assert len(d["per_task"]) == n_tasks, ("tasks", len(d["per_task"]), n_tasks)
+assert d["total_episodes"] == int(sys.argv[2]) * n_tasks, ("episodes", d["total_episodes"])
+assert d["finished"], "not finished"
+print("summary:", d["total_success_rate"], "over", d["total_episodes"], "episodes;", n_tasks, "tasks; equivalence", d["equivalence"])
+if d["equivalence"] and d["equivalence"]["n_nonzero"]:
+    print("WARNING: hook != base sampler on", d["equivalence"]["n_nonzero"], "of", d["equivalence"]["n"], "checks")
+PY
+else
 python3 - "$OUT/logs/${EXP}.stdout" "$OUT/pi05_eval_${SUITE}${TAG}.json" "$SUITE" "$TRIALS" "$HF_REPO" <<'PY'
 import re, sys, json
 txt = open(sys.argv[1], errors="replace").read()
@@ -121,4 +145,5 @@ json.dump(out, open(sys.argv[2], "w"), indent=1)
 print("summary:", out["total_success_rate"], "over", out["total_episodes"], "episodes;", len(tasks), "tasks")
 assert out["total_success_rate"] is not None and out["total_episodes"] == int(sys.argv[4]) * len(tasks) and len(tasks) == 10, "incomplete eval"
 PY
+fi
 log "=== PHASE2 EVAL done ==="
