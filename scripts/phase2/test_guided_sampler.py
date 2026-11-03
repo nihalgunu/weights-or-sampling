@@ -200,6 +200,23 @@ def main():
     assert float(((out2 - target) ** 2).mean()) < float(((hook_all.records[-1].actions - target) ** 2).mean())
     print("ok: apply_range gates firing (5 vs 2 fires); grad_steps=3 pushes further")
 
+    # 4b. a torch.compile-style wrapper on sample_actions: the strict check uses the original callable,
+    #     the compiled one is reported separately.
+    class Wrapped(FakePi0):
+        pass
+    wm = Wrapped()
+    orig = wm.sample_actions
+    def fake_compiled(device, observation, noise=None, num_steps=10):
+        return orig(device, observation, noise=noise, num_steps=num_steps) + 0.01  # "different numerics"
+    fake_compiled._torchdynamo_orig_callable = orig
+    wm.sample_actions = fake_compiled
+    hook = GuidedSampler(wm, equivalence_checks=2)
+    for _ in range(2):
+        hook(dev, obs, noise=noise, num_steps=5)
+    assert hook.equivalence_results == [0.0, 0.0], hook.equivalence_results
+    assert len(hook.compiled_diffs) == 2 and abs(hook.compiled_diffs[0][1] - 0.01) < 1e-6
+    print("ok: compiled wrapper detected; strict check against eager original, compiled diff reported")
+
     # 5. install() routes a fake Policy.
     pol = SimpleNamespace(_is_pytorch_model=True, _sample_actions=model.sample_actions)
     s = GuidedSampler(model)

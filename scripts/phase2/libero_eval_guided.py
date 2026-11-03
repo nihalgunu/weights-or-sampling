@@ -113,7 +113,13 @@ def main(args):
     def write_results():
         if sampler is not None and sampler.equivalence_results:
             er = sampler.equivalence_results
-            results["equivalence"] = {"n": len(er), "max_abs_diff": max(er), "n_nonzero": sum(1 for d in er if d != 0.0)}
+            results["equivalence"] = {"n": len(er), "max_abs_diff": max(er), "n_nonzero": sum(1 for d in er if d != 0.0),
+                                      "reference": "eager original" if sampler.ref_compiled is not None else "model.sample_actions"}
+            if sampler.compiled_diffs:
+                cd = sampler.compiled_diffs
+                results["compiled_vs_hook"] = {"n": len(cd), "max_abs_diff_real_dims": max(d[0] for d in cd),
+                                               "median_abs_diff_real_dims": float(np.median([d[0] for d in cd])),
+                                               "max_abs_diff_all_dims": max(d[1] for d in cd)}
         if args.results_json:
             tmp = args.results_json + ".tmp"
             json.dump(results, open(tmp, "w"), indent=1)
@@ -195,7 +201,9 @@ def main(args):
             logger.info(f"# episodes completed so far: {total_episodes}")
             logger.info(f"# successes: {total_successes} ({total_successes / total_episodes * 100:.1f}%)")
             if sampler is not None and sampler.equivalence_results:
-                logger.info(f"equivalence so far: n={len(sampler.equivalence_results)} max_abs_diff={max(sampler.equivalence_results):.3e}")
+                logger.info(f"equivalence so far: n={len(sampler.equivalence_results)} max_abs_diff={max(sampler.equivalence_results):.3e}"
+                            + (f"; compiled-vs-hook max|diff| real dims {max(d[0] for d in sampler.compiled_diffs):.3e}, all dims "
+                               f"{max(d[1] for d in sampler.compiled_diffs):.3e}" if sampler.compiled_diffs else ""))
         env.close()
 
         rate = task_successes / task_episodes if task_episodes else 0.0

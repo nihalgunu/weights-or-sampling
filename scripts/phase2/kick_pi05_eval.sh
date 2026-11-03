@@ -20,4 +20,4 @@ REMOTE="scripts/phase2/run_pi05_eval.sh $SUITE $TRIALS RLinf/RLinf-Pi05-LIBERO-S
 bash scripts/cloud/kick_generic.sh "p2_eval_${SUITE}${TAG}" \
   "$REMOTE" \
   "=== PHASE2 EVAL done ===" \
-  "outputs/phase2/pi05_eval_${SUITE}${TAG}.json" 4 6
+  "phase2/pi05_eval_${SUITE}${TAG}.json" 4 6   # EXPECT paths are relative to outputs/ (driver pulls outputs/$f)

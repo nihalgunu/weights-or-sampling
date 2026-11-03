@@ -70,6 +70,16 @@ class GuidedSampler:
         self.records: list[SampleRecord] = []
         self.equivalence_checks = equivalence_checks
         self.equivalence_results: list[float] = []
+        # openpi wraps model.sample_actions in torch.compile(mode="max-autotune"); the compiled graph's
+        # numerics differ from eager, so the strict check compares against the original (eager) callable
+        # and the compiled output is reported separately (max |diff| on the real action dims / all dims).
+        # (not __wrapped__: @torch.no_grad leaves an unbound function there)
+        self.ref_eager = getattr(model.sample_actions, "_torchdynamo_orig_callable", None)
+        self.ref_compiled = model.sample_actions if self.ref_eager is not None else None
+        if self.ref_eager is None:
+            self.ref_eager = model.sample_actions
+        self.compiled_diffs: list[tuple[float, float]] = []
+        self.real_action_dims = 7
         self.calls = 0
 
     # -- helpers --------------------------------------------------------------
@@ -115,10 +125,11 @@ class GuidedSampler:
             actions_shape = (bsize, m.config.action_horizon, m.config.action_dim)
             noise = m.sample_noise(actions_shape, device)
 
+        ref = ref_c = None
         if self.calls < self.equivalence_checks:
-            ref = m.sample_actions(device, observation, noise=noise, num_steps=num_steps)
-        else:
-            ref = None
+            ref = self.ref_eager(device, observation, noise=noise, num_steps=num_steps)
+            if self.ref_compiled is not None:
+                ref_c = self.ref_compiled(device, observation, noise=noise, num_steps=num_steps)
         self.calls += 1
 
         images, img_masks, lang_tokens, lang_masks, state = m._preprocess_observation(observation, train=False)
@@ -190,6 +201,9 @@ class GuidedSampler:
             self.equivalence_results.append(d)
             if rec is not None:
                 rec.equivalence_max_abs_diff = d
+        if ref_c is not None:
+            dc = (ref_c.float() - x_t.float()).abs()
+            self.compiled_diffs.append((float(dc[..., : self.real_action_dims].max()), float(dc.max())))
         if rec is not None:
             rec.actions = x_t.detach().to("cpu", torch.float32)
             self.records.append(rec)
