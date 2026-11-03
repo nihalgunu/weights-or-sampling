@@ -217,7 +217,8 @@ mirror_sync
 OK=1
 for f in $EXPECT; do
     for a in 1 2 3; do
-        rsync -az -e "$SSH" "ubuntu@$IP:/home/ubuntu/haotian_research-1/outputs/$f" ./outputs/ >> "$LOG" 2>&1 \
+        mkdir -p "$(dirname "outputs/$f")"   # EXPECT may be nested (e.g. phase2/x.json); land it at outputs/$f
+        rsync -az -e "$SSH" "ubuntu@$IP:/home/ubuntu/haotian_research-1/outputs/$f" "./outputs/$f" >> "$LOG" 2>&1 \
             && { log "  $f ok"; break; }
         sleep 8
     done
