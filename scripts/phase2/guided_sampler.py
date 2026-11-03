@@ -49,6 +49,8 @@ class SampleRecord:
     actions: Optional[torch.Tensor] = None  # final x_t [B,H,A] (normalized model space)
     q_values: list[float] = field(default_factory=list)  # Q(x0_hat) per fired step, batch mean
     equivalence_max_abs_diff: Optional[float] = None  # set when the self-check ran
+    bon_q: list[float] = field(default_factory=list)  # best-of-N: Q of each candidate's final chunk
+    bon_pick: int = 0  # index of the candidate returned
 
 
 class GuidedSampler:
@@ -62,11 +64,13 @@ class GuidedSampler:
         *,
         record: bool = False,
         equivalence_checks: int = 0,
+        bon: int = 1,
     ):
         self.model = model
         self.q_fn = q_fn
         self.cfg = cfg or GuidanceConfig()
         self.record = record
+        self.bon = bon  # >1: rank that many candidate chunks (caller passes N noises) by q_fn, return the best
         self.records: list[SampleRecord] = []
         self.equivalence_checks = equivalence_checks
         self.equivalence_results: list[float] = []
@@ -127,9 +131,10 @@ class GuidedSampler:
 
         ref = ref_c = None
         if self.calls < self.equivalence_checks:
-            ref = self.ref_eager(device, observation, noise=noise, num_steps=num_steps)
+            ref_noise = noise[:1] if self.bon > 1 else noise  # candidate 0 carries the reference's noise
+            ref = self.ref_eager(device, observation, noise=ref_noise, num_steps=num_steps)
             if self.ref_compiled is not None:
-                ref_c = self.ref_compiled(device, observation, noise=noise, num_steps=num_steps)
+                ref_c = self.ref_compiled(device, observation, noise=ref_noise, num_steps=num_steps)
         self.calls += 1
 
         images, img_masks, lang_tokens, lang_masks, state = m._preprocess_observation(observation, train=False)
@@ -152,16 +157,6 @@ class GuidedSampler:
             use_cache=True,
         )
 
-        rec = None
-        if self.record:
-            pm = prefix_pad_masks.to(prefix_embs.dtype)[..., None]
-            pool = (prefix_embs.float() * pm).sum(1) / pm.sum(1).clamp_min(1.0)
-            rec = SampleRecord(
-                noise=noise.detach().to("cpu", torch.float16),
-                state=state.detach().to("cpu", torch.float32),
-                prefix_pool=pool.detach().to("cpu", torch.float16),
-            )
-
         ctx = {
             "state": state,
             "prefix_embs": prefix_embs,
@@ -169,8 +164,54 @@ class GuidedSampler:
             "num_steps": num_steps,
         }
 
+        # Best-of-N: the caller passes N noises for a batch of one; each candidate reuses the prefix cache.
+        n_cand = 1
+        if self.bon > 1:
+            assert bsize == 1 and noise.shape[0] == self.bon, f"bon={self.bon} needs batch 1 and noise [{self.bon},H,A], got {tuple(noise.shape)}"
+            assert self.q_fn is not None, "best-of-N needs a q_fn to rank candidates"
+            n_cand = self.bon
+
+        finals, traces = [], []
+        for j in range(n_cand):
+            x_j, trace = self._euler(noise[j : j + 1] if n_cand > 1 else noise, state, prefix_pad_masks, past_key_values,
+                                     ctx, bsize, num_steps, device, keep_trace=self.record)
+            finals.append(x_j); traces.append(trace)
+
+        pick, bon_q = 0, []
+        if n_cand > 1:
+            with torch.no_grad():
+                bon_q = [float(self.q_fn(ctx, x).reshape(-1)[0]) for x in finals]
+            pick = int(torch.tensor(bon_q).argmax())
+        x_t = finals[pick]
+
+        if ref is not None:  # the check is against candidate 0, which shares the reference's noise
+            d = float((ref.float() - finals[0].float()).abs().max())
+            self.equivalence_results.append(d)
+        if ref_c is not None:
+            dc = (ref_c.float() - finals[0].float()).abs()
+            self.compiled_diffs.append((float(dc[..., : self.real_action_dims].max()), float(dc.max())))
+        if self.record:
+            pm = prefix_pad_masks.to(prefix_embs.dtype)[..., None]
+            pool = (prefix_embs.float() * pm).sum(1) / pm.sum(1).clamp_min(1.0)
+            x0_hats, times, q_values = traces[pick]
+            rec = SampleRecord(
+                noise=(noise[pick : pick + 1] if n_cand > 1 else noise).detach().to("cpu", torch.float16),
+                state=state.detach().to("cpu", torch.float32),
+                prefix_pool=pool.detach().to("cpu", torch.float16),
+                x0_hats=x0_hats, times=times, q_values=q_values,
+                actions=x_t.detach().to("cpu", torch.float32),
+                equivalence_max_abs_diff=self.equivalence_results[-1] if ref is not None else None,
+                bon_q=bon_q, bon_pick=pick,
+            )
+            self.records.append(rec)
+        return x_t
+
+    def _euler(self, noise, state, prefix_pad_masks, past_key_values, ctx, bsize, num_steps, device, *, keep_trace):
+        """The base Euler loop plus optional guidance; returns (x_t, (x0_hats, times, q_values))."""
+        m = self.model
         dt = -1.0 / num_steps
         dt = torch.tensor(dt, dtype=torch.float32, device=device)
+        x0_hats, times, q_values = [], [], []
 
         x_t = noise
         time = torch.tensor(1.0, dtype=torch.float32, device=device)
@@ -179,11 +220,11 @@ class GuidedSampler:
             v_t = m.denoise_step(state, prefix_pad_masks, past_key_values, x_t, expanded_time)
 
             t_val = float(time)
-            if rec is not None or self._fires(t_val):
+            if keep_trace or self._fires(t_val):
                 x0_hat = x_t - time * v_t
-                if rec is not None:
-                    rec.x0_hats.append(x0_hat.detach().to("cpu", torch.float16))
-                    rec.times.append(t_val)
+                if keep_trace:
+                    x0_hats.append(x0_hat.detach().to("cpu", torch.float16))
+                    times.append(t_val)
 
             # Euler step, written exactly as the base sampler writes it.
             x_t = x_t + dt * v_t
@@ -192,22 +233,9 @@ class GuidedSampler:
                 ctx["t"] = t_val
                 delta, q0 = self._guidance_delta(ctx, x0_hat)
                 x_t = x_t + delta
-                if rec is not None:
-                    rec.q_values.append(q0)
+                q_values.append(q0)
             time += dt
-
-        if ref is not None:
-            d = float((ref.float() - x_t.float()).abs().max())
-            self.equivalence_results.append(d)
-            if rec is not None:
-                rec.equivalence_max_abs_diff = d
-        if ref_c is not None:
-            dc = (ref_c.float() - x_t.float()).abs()
-            self.compiled_diffs.append((float(dc[..., : self.real_action_dims].max()), float(dc.max())))
-        if rec is not None:
-            rec.actions = x_t.detach().to("cpu", torch.float32)
-            self.records.append(rec)
-        return x_t
+        return x_t, (x0_hats, times, q_values)
 
 
 def install(policy, sampler: GuidedSampler) -> None:

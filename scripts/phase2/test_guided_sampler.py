@@ -217,6 +217,18 @@ def main():
     assert len(hook.compiled_diffs) == 2 and abs(hook.compiled_diffs[0][1] - 0.01) < 1e-6
     print("ok: compiled wrapper detected; strict check against eager original, compiled diff reported")
 
+    # 4c. best-of-N by Q: candidate 0 is the plain sample; the pick maximizes Q; bon=1 path unchanged.
+    obs1 = _obs(1, g); noises = torch.randn(4, H, A, generator=g)
+    plain = GuidedSampler(model)(dev, obs1, noise=noises[:1], num_steps=5)
+    bon = GuidedSampler(model, q_fn=q_fn, bon=4, record=True, equivalence_checks=1)
+    best = bon(dev, obs1, noise=noises, num_steps=5)
+    r = bon.records[-1]
+    assert bon.equivalence_results == [0.0], "candidate 0 must equal the plain sample"
+    assert len(r.bon_q) == 4 and r.bon_pick == int(torch.tensor(r.bon_q).argmax())
+    assert float(q_fn(None, best)) == max(r.bon_q) and float(q_fn(None, best)) >= float(q_fn(None, plain))
+    assert torch.equal(r.noise.float(), noises[r.bon_pick : r.bon_pick + 1].half().float()) and r.actions.shape == (1, H, A)
+    print(f"ok: best-of-4 picks candidate {r.bon_pick} with Q {max(r.bon_q):.3f} (plain {float(q_fn(None, plain)):.3f}); candidate 0 == plain")
+
     # 5. install() routes a fake Policy.
     pol = SimpleNamespace(_is_pytorch_model=True, _sample_actions=model.sample_actions)
     s = GuidedSampler(model)

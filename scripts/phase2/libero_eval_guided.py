@@ -61,9 +61,10 @@ def load_q(path, device):
     return _load(path, device)
 
 
-def noise_for(seed, task_id, ep, k, H, A):
+def noise_for(seed, task_id, ep, k, H, A, n=1):
+    """Deterministic noise per (seed, task, episode, inference); with n>1 candidate 0 equals the n=1 draw."""
     g = torch.Generator().manual_seed((((seed * 1000003 + task_id) * 1009 + ep) * 10007 + k) % (2**63 - 1))
-    return torch.randn(1, H, A, generator=g, dtype=torch.float32).numpy()
+    return torch.randn(n, H, A, generator=g, dtype=torch.float32).numpy()
 
 
 def main(args):
@@ -92,10 +93,11 @@ def main(args):
         cfg = GuidanceConfig(rho=args.rho, apply_range=(args.apply_lo, args.apply_hi),
                              clip_scale=args.clip_scale, grad_steps=args.grad_steps)
         sampler = GuidedSampler(model, q_fn=q_fn, cfg=cfg, record=bool(args.dump),
-                                equivalence_checks=args.equivalence_checks)
+                                equivalence_checks=args.equivalence_checks, bon=args.bon)
+        assert args.bon == 1 or q_fn is not None, "--bon needs --q_ckpt or --q_toy"
         install(policy, sampler)
         logger.info(f"hook installed: {cfg} q={'ckpt:' + args.q_ckpt if args.q_ckpt else 'toy:' + args.q_toy} "
-                    f"equivalence_checks={args.equivalence_checks} dump={args.dump}")
+                    f"equivalence_checks={args.equivalence_checks} dump={args.dump} bon={args.bon}")
     elif args.sampler != "plain":
         raise ValueError(args.sampler)
 
@@ -106,7 +108,7 @@ def main(args):
     results = {"suite": args.task_suite_name, "trials_per_task": args.num_trials_per_task, "checkpoint": args.pretrained_path,
                "num_steps": args.num_steps, "action_chunk": args.action_chunk, "seed": args.seed, "sampler": args.sampler,
                "rho": args.rho, "apply_range": [args.apply_lo, args.apply_hi], "clip_scale": args.clip_scale,
-               "grad_steps": args.grad_steps, "q": args.q_ckpt or args.q_toy, "task_ids": task_ids,
+               "grad_steps": args.grad_steps, "q": args.q_ckpt or args.q_toy, "bon": args.bon, "task_ids": task_ids,
                "per_task": [], "total_successes": 0, "total_episodes": 0, "total_success_rate": None,
                "equivalence": None, "started": _time.strftime("%Y-%m-%d %H:%M:%S"), "finished": None}
 
@@ -156,7 +158,7 @@ def main(args):
                 if not action_plan:
                     observation = {"observation/image": img, "observation/wrist_image": wrist_img,
                                    "observation/state": state, "prompt": str(task_description)}
-                    noise = noise_for(args.seed, task_id, episode_idx, k, H, A)
+                    noise = noise_for(args.seed, task_id, episode_idx, k, H, A, n=args.bon)
                     action_chunk = policy.infer(observation, noise=noise)["actions"]
                     k += 1
                     assert len(action_chunk) >= args.action_chunk, (
@@ -187,6 +189,8 @@ def main(args):
                     actions=np.stack([r.actions[0].numpy() for r in R]),
                     exec_actions=np.stack(exec_chunks),
                     q_values=np.asarray([r.q_values for r in R], dtype=np.float32) if R[0].q_values else np.zeros(0),
+                    bon_q=np.asarray([r.bon_q for r in R], dtype=np.float32) if R[0].bon_q else np.zeros(0),
+                    bon_pick=np.asarray([r.bon_pick for r in R]),
                 )
                 sampler.records.clear()
 
@@ -253,6 +257,7 @@ if __name__ == "__main__":
     p.add_argument("--grad_steps", type=int, default=1)
     p.add_argument("--q_ckpt", default="")
     p.add_argument("--q_toy", default="none", choices=["none", "small_action", "smooth"])
+    p.add_argument("--bon", type=int, default=1, help="best-of-N candidate chunks ranked by Q (needs a Q)")
     # instrumentation
     p.add_argument("--equivalence_checks", type=int, default=0)
     p.add_argument("--equivalence_strict", action="store_true")
