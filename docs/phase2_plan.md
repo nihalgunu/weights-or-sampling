@@ -63,3 +63,15 @@ sit near ceiling and mostly certify "no change". Power (alpha .05, power .8): un
 detects ~7 points at base 0.85 and ~8 points at base 0.35; paired, 500 pairs detect a 5-point net
 gain when discordance is 5%/10%. Tooling: scripts/phase2/to_roborigor.py converts dumps to
 EpisodeRecord JSONL (`outputs/phase2/rr/<run>/`); monitor_jobs.sh / abort_job.sh give early stop.
+
+### Baseline result and Q diagnostics (Nov 3)
+- base50 (eager hook, rho=0, seed 7, 50 trials x 10 tasks): 384/500 = 76.8% (M0 compiled sampler gave 77/100). Per task:
+  0:49 1:47 2:49 3:41 4:45 5:20 6:34 7:50 8:43 9:6. Equivalence vs eager 0.0 on 20 checks; compiled-vs-hook max 0.014.
+- Informative tasks are now 3 (82%), 5 (40%), 6 (68%); 0/2/7 are at ceiling and 9 is near floor (12%), so the
+  earlier "5 and 9" choice is superseded. Paired power at 500 pairs: +5 net at 10-15% discordance -> 0.80-0.94.
+- Q (MLP on state[:8] + pooled prefix + executed chunk, BCE on episode success), 5 random episode splits:
+  per-task held-out AUC 0.84 mean; action-swap AUC 0.73 (chunk carries signal), context-swap 0.61; counterfactual
+  pair accuracy (same context, success chunk vs failure chunk) 0.75 on tasks 1/4/5, ~0.52 on 6/8.
+- Cross-fitting for the guided arms: outputs/phase2/q/xfit_hi (trained on episodes 25-49) is applied to episodes 0-24
+  and xfit_lo to 25-49 (`--q_ckpt xfit_hi/q.pt,xfit_lo/q.pt`), so no episode is steered by a Q that saw its init state.
+  Held-out-half pair accuracy 0.65 / 0.62, task 5: 0.76 / 0.74.

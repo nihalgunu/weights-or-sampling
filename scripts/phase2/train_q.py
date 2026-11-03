@@ -39,12 +39,15 @@ def auc(scores, labels):
     return float((ranks[labels == 1].sum() - n1 * (n1 + 1) / 2) / (n1 * n0))
 
 
-def load_dumps(dirs, train_on):
+def load_dumps(dirs, train_on, episodes=None):
+    """episodes: optional (lo, hi); keep only dumps with lo <= episode_idx < hi (cross-fitting halves)."""
     files = sorted(f for d in dirs for f in glob.glob(str(Path(d) / "task*_ep*.npz")))
     assert files, f"no dumps under {dirs}"
     eps = []
     for f in files:
         z = np.load(f, allow_pickle=False)
+        if episodes is not None and not (episodes[0] <= int(z["episode_idx"]) < episodes[1]):
+            continue
         K = z["actions"].shape[0]
         chunks = []
         if train_on in ("final", "both"):
@@ -86,7 +89,9 @@ def stack(eps):
 def main(a):
     torch.manual_seed(a.seed); np.random.seed(a.seed)
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    eps = load_dumps(a.dumps, a.train_on)
+    ep_str = getattr(a, "episodes", "")
+    ep_range = tuple(int(v) for v in ep_str.split(":")) if ep_str else None
+    eps = load_dumps(a.dumps, a.train_on, ep_range)
     n_succ = sum(e["success"] for e in eps)
     print(f"{len(eps)} episodes ({n_succ} success), {sum(len(e['x0']) for e in eps)} samples, tasks {sorted({e['task_id'] for e in eps})}")
     tr_eps, va_eps = split_episodes(eps, a.val_frac, a.seed)
@@ -131,7 +136,7 @@ def main(a):
     off = 0
     for e in va_eps:
         k = len(e["x0"]); ep_scores.append(float(vs[off:off + k].mean())); ep_labels.append(int(e["success"])); off += k
-    meta = {"dumps": a.dumps, "train_on": a.train_on, "n_episodes": len(eps), "n_success": int(n_succ),
+    meta = {"dumps": a.dumps, "train_on": a.train_on, "episodes": ep_str, "n_episodes": len(eps), "n_success": int(n_succ),
             "train_eps": len(tr_eps), "val_eps": len(va_eps), "val_auc": best[0], "best_epoch": best[2],
             "val_auc_per_task": per_task, "val_episode_auc": auc(ep_scores, ep_labels) if ep_labels else float("nan"),
             "use_prefix": not a.no_prefix, "hidden": a.hidden, "epochs": a.epochs, "lr": a.lr, "seed": a.seed,
@@ -157,4 +162,5 @@ if __name__ == "__main__":
     p.add_argument("--late_weight", type=float, default=0.0)
     p.add_argument("--no_prefix", action="store_true")
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--episodes", default="", help="lo:hi episode_idx range to train on (cross-fitting), e.g. 25:50")
     main(p.parse_args())

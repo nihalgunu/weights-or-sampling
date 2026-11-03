@@ -89,7 +89,11 @@ def main(args):
 
     sampler = None
     if args.sampler == "hook":
-        q_fn = load_q(args.q_ckpt, device) if args.q_ckpt else toy_q(args.q_toy)
+        q_fns = [load_q(c, device) for c in args.q_ckpt.split(",")] if args.q_ckpt else []
+        # Cross-fitting: with two ckpts, episodes [0, trials/2) use ckpt 0 (train it on the other half) and
+        # the rest use ckpt 1, so no episode is evaluated with a Q that saw its own initial state.
+        assert len(q_fns) <= 2, "--q_ckpt takes one ckpt, or two for cross-fitting"
+        q_fn = q_fns[0] if q_fns else toy_q(args.q_toy)
         cfg = GuidanceConfig(rho=args.rho, apply_range=(args.apply_lo, args.apply_hi),
                              clip_scale=args.clip_scale, grad_steps=args.grad_steps)
         sampler = GuidedSampler(model, q_fn=q_fn, cfg=cfg, record=bool(args.dump),
@@ -139,6 +143,8 @@ def main(args):
             logger.info(f"Starting episode {task_episodes + 1}...")
             policy.reset()
             env.reset()
+            if sampler is not None and len(q_fns) == 2:
+                sampler.q_fn = q_fns[0 if episode_idx < args.num_trials_per_task // 2 else 1]
             action_plan = collections.deque()
             obs = env.set_init_state(initial_states[episode_idx])
             replay_images, exec_chunks, step_ts = [], [], []
@@ -255,7 +261,7 @@ if __name__ == "__main__":
     p.add_argument("--apply_hi", type=float, default=1.0)
     p.add_argument("--clip_scale", type=float, default=1.0)
     p.add_argument("--grad_steps", type=int, default=1)
-    p.add_argument("--q_ckpt", default="")
+    p.add_argument("--q_ckpt", default="", help="Q checkpoint; two comma-separated ckpts = cross-fitted by episode half")
     p.add_argument("--q_toy", default="none", choices=["none", "small_action", "smooth"])
     p.add_argument("--bon", type=int, default=1, help="best-of-N candidate chunks ranked by Q (needs a Q)")
     # instrumentation
