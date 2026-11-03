@@ -50,3 +50,16 @@ and Long (headroom 56 pts).
 - HF checkpoint layout vs openpi `load_norm_stats` (needs assets/<asset_id>/norm_stats.json).
 - piRL PPO assumes multi-GPU; single-GPU matched budget may need GRPO and small env counts.
 - Q quality bounds the guidance arm. That is the finding, not a bug, but it needs 2 Q seeds.
+
+## Statistics design (added Nov 3, using RoboRigor)
+
+Every arm runs the full suite at 50 trials/task (500 episodes) with the same `--seed`, so episodes
+pair across arms by (task, init state, noise stream). Comparisons use `roborigor report` (exact
+McNemar on the paired discordant counts, Wilson intervals, Holm across tasks); the eager hook at
+rho=0 is the baseline arm, never the torch.compiled sampler (compiled-vs-eager differs by up to
+0.21 in normalized action units). Informative tasks declared in advance from the smoke test:
+task 5 (bowl on the ramekin, 4/10) and task 9 (bowl on the wooden cabinet, 3/10); the other eight
+sit near ceiling and mostly certify "no change". Power (alpha .05, power .8): unpaired, 500/arm
+detects ~7 points at base 0.85 and ~8 points at base 0.35; paired, 500 pairs detect a 5-point net
+gain when discordance is 5%/10%. Tooling: scripts/phase2/to_roborigor.py converts dumps to
+EpisodeRecord JSONL (`outputs/phase2/rr/<run>/`); monitor_jobs.sh / abort_job.sh give early stop.

@@ -82,3 +82,4 @@ docs/tfg_vs_grpo_study.*
 # Preprint not public until posted to arXiv (website shows "Paper - soon")
 paper/
 docs/
+.venv_rr/
