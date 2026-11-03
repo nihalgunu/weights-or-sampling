@@ -13,7 +13,10 @@ while true; do
     if grep -qE "=== PHASE2 EVAL done|driver done" "$L" 2>/dev/null; then
       echo "DONE[$n] $(date +%H:%M:%S)"; grep -nE "summary:|terminat|driver done" "$L" | tail -4; exit 0; fi
     [ -f "$F" ] || continue
-    if grep -qE "Traceback|Error:" "$F"; then echo "ANOMALY[$n]: error in stdout"; grep -nE -A3 "Traceback|Error:" "$F" | tail -12; exit 0; fi
+    # Inductor autotune prints benign "OutOfMemoryError ... Ignoring this choice" lines while the compiled
+    # reference compiles; only a real traceback or a top-level exception counts.
+    ERRPAT="Traceback \(most recent|^[A-Za-z]*Error: |^AssertionError|FATAL:"
+    if grep -vE "select_algorithm|Autotune|Ignoring this choice" "$F" | grep -qE "$ERRPAT"; then echo "ANOMALY[$n]: error in stdout"; grep -vE "select_algorithm|Autotune" "$F" | grep -nE -A3 "$ERRPAT" | tail -12; exit 0; fi
     bad=$(grep -oE "equivalence so far: n=[0-9]+ max_abs_diff=[0-9.e+-]+" "$F" | grep -v "max_abs_diff=0.000e+00" | tail -1)
     [ -n "$bad" ] && { echo "ANOMALY[$n]: $bad"; exit 0; }
     t0=$(grep -oE "Successes: [0-9]+/[0-9]+" "$F" | head -1)
