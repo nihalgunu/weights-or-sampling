@@ -1,0 +1,37 @@
+{
+ "dumps": [
+  "outputs/phase2/dumps/base50"
+ ],
+ "train_on": "final",
+ "episodes": "25:50",
+ "n_episodes": 250,
+ "n_success": 188,
+ "train_eps": 200,
+ "val_eps": 50,
+ "val_auc": 0.9514918690450606,
+ "best_epoch": 40,
+ "val_auc_per_task": {
+  "0": NaN,
+  "1": NaN,
+  "2": NaN,
+  "3": 0.9019138755980861,
+  "4": 0.9486531986531986,
+  "5": 0.8784090909090909,
+  "6": 0.8326885880077369,
+  "7": NaN,
+  "8": 0.7282717282717283,
+  "9": 0.7493444055944056
+ },
+ "val_episode_auc": 0.9868421052631579,
+ "use_prefix": true,
+ "hidden": 256,
+ "epochs": 60,
+ "lr": 0.001,
+ "seed": 0,
+ "feature_dims": {
+  "state": 8,
+  "prefix": 2048,
+  "horizon": 10,
+  "act": 7
+ }
+}
