@@ -75,3 +75,35 @@ EpisodeRecord JSONL (`outputs/phase2/rr/<run>/`); monitor_jobs.sh / abort_job.sh
 - Cross-fitting for the guided arms: outputs/phase2/q/xfit_hi (trained on episodes 25-49) is applied to episodes 0-24
   and xfit_lo to 25-49 (`--q_ckpt xfit_hi/q.pt,xfit_lo/q.pt`), so no episode is steered by a Q that saw its init state.
   Held-out-half pair accuracy 0.65 / 0.62, task 5: 0.76 / 0.74.
+
+### Pre-launch diagnostics for the guided arms (Nov 4-5, all offline on base50 dumps, no GPU)
+Scripts: scripts/phase2/diag/ (calibrate_rho.py uses the shipped Qs; grad_agree.py and grad_dims.py take a
+directory holding q/{hi,lo}_s{0..4}.pt, five seeds per cross-fit half, trained with
+`train_q.py --train_on final --episodes 25:50|0:25 --seed S`, 11 s each on CPU).
+1. **The Q gradient is steep and consistent, not noise.** Raw gradient norm ~46 logits per unit action.
+   Cosine between seeds trained on the same half 0.83; between ensembles trained on disjoint halves 0.62
+   (all tasks 0.58-0.66). A step along one Q's gradient raises the other seeds almost as much as itself
+   (+3.9 vs +3.5 logits at rho 0.005); a random direction of the same length gives +0.02.
+2. **In raw action units the gradient is 99.6% rotation.** Energy share by dim (x y z rx ry rz grip) =
+   .001 .001 .002 .306 .584 .106 .000. The rotation commands barely vary in the data (sd 0.03, 0.02, 0.06 vs
+   0.45, 0.35, 0.35 for translation, 1.0 for the gripper) and Q standardizes its inputs, so a small raw move
+   on a rotation dim is a large move for Q. The raw-metric sampler therefore pushes only rotation.
+   Fix added: `--metric std` (GuidanceConfig.metric): steepest ascent measured in units of each dim's sd
+   (step proportional to sd^2 * grad); CPU test 4d. In that metric the step is spread evenly over all 7 dims.
+3. **Only the last guidance step survives.** In the toy-Q run (rho 0.05) the actual action shift at the first
+   inference is 1.14x the last step's delta and 0.23x the sum of the five deltas (cosine 0.998). The policy is
+   near-deterministic given the observation (rms(first x0_hat - final) = 0.054), so each Euler step pulls the
+   sample back to the same x0 and erases earlier pushes. Guidance on this policy is, in effect, one gradient
+   step on the final action.
+4. **Calibration (last step only, held-out Q):** raw rho 0.002 / 0.005 / 0.01 -> logit +1.6 / +3.9 / +7.3 and a
+   rotation shift of up to 0.4 / 0.9 / 1.9 sd. std rho 0.05 / 0.1 / 0.2 -> +1.7 / +3.4 / +6.6 and 0.1 / 0.2 /
+   0.45 sd on every dim. For scale, swapping in another episode's chunk changes the logit by ~2.4. The earlier
+   sweep {0.005 .. 0.05} raw would have been 1 to 10 sd on rotation.
+5. **Pairing is exact.** The M1 unguided rerun (other A10 box, task subset 0,5,9) reproduces the base50
+   episodes bit for bit over whole episodes (9 of 9). Any difference in a guided arm is caused by the arm.
+   Keep every arm on an A10.
+
+Arms to run (scripts/phase2/launch_guided_arms.sh): raw rho 0.002 and 0.005, std rho 0.05 and 0.1 (matched
+logit gain across the two metrics), best-of-8 by Q. Tasks 0,5,3,6,9 x 50 trials (250 episodes): task 0 is the
+harm control, the other four hold 99 of the 116 base50 failures. A10 is now $1.29/h (was $0.75), so the full
+500 would be ~$7 per arm; the 250-episode subset is ~3.2 h, ~$4 per arm, ~$20 for five. NOT launched yet.

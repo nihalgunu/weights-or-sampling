@@ -11,7 +11,7 @@ set -a; source .env; set +a
 SUITE="${1:-libero_spatial}"; TRIALS="${2:-10}"; TAG="${3:-}"
 P2_MODE="${P2_MODE:-plain}"; P2_EXTRA_ARGS="${P2_EXTRA_ARGS:-}"
 export BABYSIT_GPU_TYPES="${BABYSIT_GPU_TYPES:-gpu_1x_a10 gpu_1x_a100_sxm4 gpu_1x_h100_pcie gpu_1x_gh200}"
-export BABYSIT_SYNC="outputs/phase2/logs outputs/phase2/dumps"
+export BABYSIT_SYNC="${P2_SYNC:-outputs/phase2/logs outputs/phase2/dumps}"   # P2_SYNC narrows the mirror (e.g. one dump dir) so old dumps are not re-uploaded
 export BABYSIT_IDLE_POLLS=0   # LIBERO eval is simulator-bound; GPU reads 0% between inference bursts
 # Env vars do not cross the ssh hop (the driver runs `bash $RUNNER`); mode and flags go positionally.
 # EXTRA_ARGS travels single-quoted through the driver's ssh string, so it must not contain quotes.

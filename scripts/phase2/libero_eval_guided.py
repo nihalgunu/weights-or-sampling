@@ -95,7 +95,7 @@ def main(args):
         assert len(q_fns) <= 2, "--q_ckpt takes one ckpt, or two for cross-fitting"
         q_fn = q_fns[0] if q_fns else toy_q(args.q_toy)
         cfg = GuidanceConfig(rho=args.rho, apply_range=(args.apply_lo, args.apply_hi),
-                             clip_scale=args.clip_scale, grad_steps=args.grad_steps)
+                             clip_scale=args.clip_scale, grad_steps=args.grad_steps, metric=args.metric)
         sampler = GuidedSampler(model, q_fn=q_fn, cfg=cfg, record=bool(args.dump),
                                 equivalence_checks=args.equivalence_checks, bon=args.bon)
         assert args.bon == 1 or q_fn is not None, "--bon needs --q_ckpt or --q_toy"
@@ -112,7 +112,7 @@ def main(args):
     results = {"suite": args.task_suite_name, "trials_per_task": args.num_trials_per_task, "checkpoint": args.pretrained_path,
                "num_steps": args.num_steps, "action_chunk": args.action_chunk, "seed": args.seed, "sampler": args.sampler,
                "rho": args.rho, "apply_range": [args.apply_lo, args.apply_hi], "clip_scale": args.clip_scale,
-               "grad_steps": args.grad_steps, "q": args.q_ckpt or args.q_toy, "bon": args.bon, "task_ids": task_ids,
+               "grad_steps": args.grad_steps, "metric": args.metric, "q": args.q_ckpt or args.q_toy, "bon": args.bon, "task_ids": task_ids,
                "per_task": [], "total_successes": 0, "total_episodes": 0, "total_success_rate": None,
                "equivalence": None, "started": _time.strftime("%Y-%m-%d %H:%M:%S"), "finished": None}
 
@@ -261,6 +261,8 @@ if __name__ == "__main__":
     p.add_argument("--apply_hi", type=float, default=1.0)
     p.add_argument("--clip_scale", type=float, default=1.0)
     p.add_argument("--grad_steps", type=int, default=1)
+    p.add_argument("--metric", choices=["raw", "std"], default="raw",
+                   help="raw: normalized gradient in action units; std: in units of each dim's spread (Q's act_sd)")
     p.add_argument("--q_ckpt", default="", help="Q checkpoint; two comma-separated ckpts = cross-fitted by episode half")
     p.add_argument("--q_toy", default="none", choices=["none", "small_action", "smooth"])
     p.add_argument("--bon", type=int, default=1, help="best-of-N candidate chunks ranked by Q (needs a Q)")

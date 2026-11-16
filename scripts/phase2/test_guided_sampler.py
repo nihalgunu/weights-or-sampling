@@ -229,6 +229,29 @@ def main():
     assert torch.equal(r.noise.float(), noises[r.bon_pick : r.bon_pick + 1].half().float()) and r.actions.shape == (1, H, A)
     print(f"ok: best-of-4 picks candidate {r.bon_pick} with Q {max(r.bon_q):.3f} (plain {float(q_fn(None, plain)):.3f}); candidate 0 == plain")
 
+    # 4d. metric="std": the step is steepest ascent in units of each dim's spread (sd^2 * grad, fixed length
+    #     rho*sqrt(numel) in z = x / sd), zero where the Q reads nothing; metric="raw" is unchanged.
+    class SdQ:
+        act_sd = torch.cat([torch.full((H, 3), 0.4), torch.full((H, 3), 0.03), torch.ones(H, 1)], 1)  # xyz, rot, grip
+        def __call__(self, ctx, x):
+            return x[:, :, :7].flatten(1).sum(1)  # gradient = 1 on every read dim
+    sq = SdQ(); x0 = torch.randn(2, H, A, generator=g)
+    d_raw, _ = GuidedSampler(model, q_fn=sq, cfg=GuidanceConfig(rho=0.05))._guidance_delta({}, x0)
+    d_std, _ = GuidedSampler(model, q_fn=sq, cfg=GuidanceConfig(rho=0.05, metric="std"))._guidance_delta({}, x0)
+    n = (H * A) ** 0.5
+    assert torch.allclose(d_raw.flatten(1).norm(dim=1), torch.full((2,), 0.05 * n), atol=1e-5)
+    assert float(d_raw[:, :, 7:].abs().max()) == 0.0 and float(d_std[:, :, 7:].abs().max()) == 0.0
+    assert torch.allclose(d_raw[:, :, 0], d_raw[:, :, 3]), "raw metric: equal gradient -> equal step on xyz and rot"
+    z = d_std[:, :, :7] / sq.act_sd
+    assert torch.allclose(z.flatten(1).norm(dim=1), torch.full((2,), 0.05 * n), atol=1e-5), "std metric: fixed length in sd units"
+    ratio = float(d_std[0, 0, 0] / d_std[0, 0, 3])
+    assert abs(ratio - (0.4 / 0.03) ** 2) < 1e-2 * ratio, f"std metric: step ratio xyz/rot should be (sd ratio)^2, got {ratio}"
+    try:
+        GuidedSampler(model, q_fn=q_fn, cfg=GuidanceConfig(rho=0.05, metric="std"))._guidance_delta({}, x0); raise SystemExit("no assert")
+    except AssertionError:
+        pass
+    print(f"ok: metric=std steps sd^2-weighted (xyz/rot step ratio {ratio:.0f}), fixed length in sd units; raw unchanged")
+
     # 5. install() routes a fake Policy.
     pol = SimpleNamespace(_is_pytorch_model=True, _sample_actions=model.sample_actions)
     s = GuidedSampler(model)

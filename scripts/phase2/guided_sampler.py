@@ -35,6 +35,13 @@ class GuidanceConfig:
     clip_scale: float = 1.0  # per-sample gradient rescale: ||g|| = clip_scale * sqrt(numel(x0))
     grad_steps: int = 1  # ascent iterations on x0_hat per fired step
     normalize: bool = True  # rescale the gradient to the fixed norm above (False = raw gradient * rho)
+    # "raw": steepest ascent in normalized action units (every dim counts the same).
+    # "std": steepest ascent in units of each dim's natural spread (the Q's act_sd buffer): the gradient is
+    #        taken w.r.t. z = x / sd, normalized there, and mapped back, so the step is proportional to
+    #        sd^2 * dQ/dx. Needed because LIBERO rotation dims vary ~10x less than translation dims, and a
+    #        raw-metric step puts ~all of its length on them. Step rms on the dims Q reads is
+    #        rho * sqrt(numel / n_read) sd-units per fired step (2.14 * rho for H=10, A=32, 7 read dims).
+    metric: str = "raw"
 
 
 @dataclass
@@ -96,9 +103,22 @@ class GuidedSampler:
         lo, hi = self.cfg.apply_range
         return self.active and (lo - 1e-6) <= t <= (hi + 1e-6)
 
+    def _metric_sd(self, x: torch.Tensor) -> Optional[torch.Tensor]:
+        """Per-element spread [1,H,A] for the "std" metric (zero where Q reads nothing); None for "raw"."""
+        if self.cfg.metric == "raw":
+            return None
+        assert self.cfg.metric == "std", f"unknown metric {self.cfg.metric}"
+        act_sd = getattr(self.q_fn, "act_sd", None)
+        assert act_sd is not None, 'metric="std" needs a q_fn with an act_sd buffer [horizon, act_dims]'
+        sd = torch.zeros(1, *x.shape[1:], dtype=x.dtype, device=x.device)
+        h, a = act_sd.shape
+        sd[0, :h, :a] = act_sd.to(x.device, x.dtype)
+        return sd
+
     def _guidance_delta(self, ctx: dict[str, Any], x0_hat: torch.Tensor) -> tuple[torch.Tensor, float]:
         """Return (delta to add to x_t, mean Q at the start point)."""
         x = x0_hat.detach().float().clone()
+        sd = self._metric_sd(x)
         q0 = None
         delta = torch.zeros_like(x)
         for _ in range(max(1, self.cfg.grad_steps)):
@@ -111,10 +131,14 @@ class GuidedSampler:
             if q0 is None:
                 q0 = float(q.detach().mean())
             g = g.detach()
+            if sd is not None:
+                g = g * sd  # gradient w.r.t. z = x / sd
             if self.cfg.normalize:
                 n = g.flatten(1).norm(dim=1).clamp_min(1e-12).view(-1, *([1] * (g.ndim - 1)))
                 g = g / n * (self.cfg.clip_scale * math.sqrt(g[0].numel()))
             step = self.cfg.rho * g
+            if sd is not None:
+                step = step * sd  # back to action units
             delta = delta + step
             x = (x.detach() + step)
         return delta.to(x0_hat.dtype), q0 if q0 is not None else float("nan")
